@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GoogleSignInButton } from '../GoogleSignInButton';
 import { useRouter } from 'next/navigation';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 // Mock next/navigation
 const mockPush = jest.fn();
@@ -12,12 +13,23 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Mock Firebase Auth
+const mockProvider = {
+  addScope: jest.fn(),
+  setCustomParameters: jest.fn(),
+};
+
+const mockGoogleAuthProvider = jest.fn(() => mockProvider);
+
 jest.mock('firebase/auth', () => ({
-  GoogleAuthProvider: jest.fn(() => ({
-    addScope: jest.fn(),
-    setCustomParameters: jest.fn()
-  })),
+  GoogleAuthProvider: function() {
+    return mockProvider;
+  },
   signInWithPopup: jest.fn()
+}));
+
+// Mock Firebase instance
+jest.mock('@/lib/firebase', () => ({
+  auth: {}
 }));
 
 describe('GoogleSignInButton', () => {
@@ -25,7 +37,6 @@ describe('GoogleSignInButton', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
     mockSignInWithPopup.mockResolvedValue({
       user: {
         getIdToken: () => Promise.resolve('mock-token')
@@ -54,7 +65,9 @@ describe('GoogleSignInButton', () => {
     await fireEvent.click(button);
 
     await waitFor(() => {
-      expect(mockSignInWithPopup).toHaveBeenCalled();
+      expect(mockProvider.addScope).toHaveBeenCalledWith('https://www.googleapis.com/auth/userinfo.profile');
+      expect(mockProvider.setCustomParameters).toHaveBeenCalledWith({ prompt: 'select_account' });
+      expect(mockSignInWithPopup).toHaveBeenCalledWith({}, mockProvider);
       expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',
         headers: {

@@ -1,64 +1,158 @@
 'use client';
 
-import { useAuthContext } from '@/lib/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase';
+import { useState } from 'react';
+import { useUser } from '@/lib/hooks/useUser';
+import { usePlants } from '@/lib/hooks/usePlants';
+import { PlantCard } from '@/components/ui/PlantCard';
+import { AddPlantForm } from '@/components/ui/AddPlantForm';
+import { Toast } from '@/components/ui/Toast';
+import type { Plant } from '@/types/plant';
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
 
 export default function DashboardPage() {
-  const { user, loading } = useAuthContext();
-  const router = useRouter();
+  const { profile } = useUser();
+  const { plants, loading, addPlant, updatePlant, deletePlant, updateWateringDate } = usePlants();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
-  const handleLogout = async () => {
+  const showToast = (message: string, type: ToastState['type'] = 'success') => {
+    setToast({ message, type });
+  };
+
+  const handleAddPlant = async (data: Omit<Plant, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, photo?: File) => {
     try {
-      await auth.signOut();
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/login');
+      await addPlant(data, photo);
+      setShowAddForm(false);
+      showToast('Plant added successfully');
     } catch (error) {
-      console.error('Error logging out:', error);
+      showToast('Failed to add plant', 'error');
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
+  const handleUpdatePlant = async (data: Omit<Plant, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, photo?: File) => {
+    if (!editingPlant) return;
+    try {
+      await updatePlant(editingPlant.id, data, photo);
+      setEditingPlant(null);
+      showToast('Plant updated successfully');
+    } catch (error) {
+      showToast('Failed to update plant', 'error');
+    }
+  };
+
+  const handleDeletePlant = async (id: string) => {
+    if (confirm('Are you sure you want to delete this plant?')) {
+      try {
+        await deletePlant(id);
+        showToast('Plant deleted successfully');
+      } catch (error) {
+        showToast('Failed to delete plant', 'error');
+      }
+    }
+  };
+
+  const handleWaterPlant = async (id: string) => {
+    try {
+      await updateWateringDate(id);
+      showToast('Watering date updated');
+    } catch (error) {
+      showToast('Failed to update watering date', 'error');
+    }
+  };
+
+  if (!profile?.completedOnboarding) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold">Complete Your Profile</h2>
+          <p className="mt-2 text-gray-600">Please complete the onboarding process to access your dashboard.</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!user) {
-    router.push('/login');
-    return null;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-500 border-t-transparent"></div>
+          <p className="mt-2 text-gray-600">Loading your plants...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white p-8">
+    <div className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="mx-auto max-w-7xl">
-        <div className="flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Welcome to your Plant Dashboard</h1>
-            <p className="mt-2 text-gray-600">Hello, {user.displayName}</p>
+            <h1 className="text-3xl font-bold">Welcome, {profile.displayName}</h1>
+            <p className="mt-1 text-gray-600">Manage your plant collection</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-          >
-            Sign Out
-          </button>
+          {!showAddForm && !editingPlant && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              Add New Plant
+            </button>
+          )}
         </div>
-        
-        <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold">Your Plants</h2>
-            <p className="mt-2 text-gray-600">Start adding your plants to track their care.</p>
+
+        {(showAddForm || editingPlant) && (
+          <div className="mb-8 rounded-lg bg-white p-6 shadow">
+            <h2 className="mb-6 text-xl font-semibold">
+              {editingPlant ? 'Edit Plant' : 'Add New Plant'}
+            </h2>
+            <AddPlantForm
+              onSubmit={editingPlant ? handleUpdatePlant : handleAddPlant}
+              onCancel={() => {
+                setShowAddForm(false);
+                setEditingPlant(null);
+              }}
+              initialData={editingPlant || undefined}
+            />
           </div>
-          
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold">Today's Tasks</h2>
-            <p className="mt-2 text-gray-600">No pending tasks for today.</p>
+        )}
+
+        {plants.length === 0 && !showAddForm ? (
+          <div className="rounded-lg bg-white p-8 text-center shadow">
+            <h3 className="text-lg font-medium">No plants yet</h3>
+            <p className="mt-2 text-gray-600">Add your first plant to get started!</p>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="mt-4 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              Add Plant
+            </button>
           </div>
-          
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold">Weather</h2>
-            <p className="mt-2 text-gray-600">Weather information coming soon.</p>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {plants.map((plant) => (
+              <PlantCard
+                key={plant.id}
+                plant={plant}
+                onWater={() => handleWaterPlant(plant.id)}
+                onEdit={() => setEditingPlant(plant)}
+                onDelete={() => handleDeletePlant(plant.id)}
+              />
+            ))}
           </div>
-        </div>
+        )}
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     </div>
   );

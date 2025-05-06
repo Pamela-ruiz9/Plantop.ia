@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/lib/hooks/useUser';
+import { useEffect, useState } from 'react';
 
 const onboardingSchema = z.object({
   location: z.string().min(1, 'Location is required'),
@@ -27,9 +28,32 @@ const plantTypes = [
 export default function OnboardingPage() {
   const router = useRouter();
   const { profile, updateProfile } = useUser();
-  const { register, handleSubmit, formState: { errors } } = useForm<OnboardingForm>({
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<OnboardingForm>({
     resolver: zodResolver(onboardingSchema),
   });
+
+  const detectLocation = async () => {
+    setIsLoadingLocation(true);
+    try {
+      if ('geolocation' in navigator) {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+        
+        const response = await fetch(
+          `https://api.openweathermap.org/geo/1.0/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&limit=1&appid=${process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY}`
+        );
+        
+        const [locationData] = await response.json();
+        setValue('location', `${locationData.name}, ${locationData.country}`);
+      }
+    } catch (error) {
+      console.error('Error detecting location:', error);
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
 
   const onSubmit = async (data: OnboardingForm) => {
     await updateProfile({
@@ -38,6 +62,12 @@ export default function OnboardingPage() {
     });
     router.push('/dashboard');
   };
+
+  useEffect(() => {
+    if (profile?.completedOnboarding) {
+      router.push('/dashboard');
+    }
+  }, [profile, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white px-4 py-16">
@@ -49,9 +79,19 @@ export default function OnboardingPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Your Location
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="block text-sm font-medium text-gray-700">
+                Your Location
+              </label>
+              <button
+                type="button"
+                onClick={detectLocation}
+                className="text-sm text-green-600 hover:text-green-700"
+                disabled={isLoadingLocation}
+              >
+                {isLoadingLocation ? 'Detecting...' : 'Detect Location'}
+              </button>
+            </div>
             <input
               type="text"
               {...register('location')}
