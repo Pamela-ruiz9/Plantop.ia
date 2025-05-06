@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Plantop.ia",
   description: "Intelligent plant care application",
+  icons: {
+    icon: "/logo-square.svg",
+    apple: "/logo-square.svg"
+  },
 };
 
 export default function RootLayout({
