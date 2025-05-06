@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useUser } from '@/lib/hooks/useUser';
+import { useState, useEffect } from 'react';
+import { useAuthContext } from '@/lib/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import type { Plant } from '@/types/plant';
 
 interface AddPlantFormProps {
@@ -11,7 +12,8 @@ interface AddPlantFormProps {
 }
 
 export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormProps) {
-  const { user } = useUser();
+  const { user, loading: userLoading } = useAuthContext();
+  const router = useRouter();
   const [commonName, setCommonName] = useState(initialData?.commonName || '');
   const [species, setSpecies] = useState(initialData?.species || '');
   const [location, setLocation] = useState<'indoor' | 'outdoor' | undefined>(initialData?.location);
@@ -26,11 +28,21 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
     initialData?.wateringSchedule?.frequency?.toString() || ''
   );
 
+  // Check authentication on mount and when user state changes
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, userLoading, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commonName) return;
+    
+    // Double check authentication
     if (!user) {
-      setError('You must be logged in to add a plant');
+      setError('You must be logged in to add a plant. Please log in again.');
+      router.push('/login');
       return;
     }
 
@@ -60,6 +72,18 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
       setLoading(false);
     }
   };
+
+  if (userLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // The useEffect will handle the redirect
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

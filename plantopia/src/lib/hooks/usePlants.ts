@@ -11,72 +11,64 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
-  serverTimestamp,
-  Timestamp
+  serverTimestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
-import { useUser } from './useUser';
+import { useAuthContext } from '../contexts/AuthContext';
 import type { Plant } from '@/types/plant';
 
 export function usePlants() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
+  const { user } = useAuthContext();
 
   useEffect(() => {
     if (!user?.uid) {
       setPlants([]);
       setLoading(false);
-      return;
+      return undefined;
     }
 
-    setError(null);
-    try {
-      const plantsQuery = query(
-        collection(db, 'plants'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
+    const plantsQuery = query(
+      collection(db, 'plants'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
 
-      const unsubscribe = onSnapshot(
-        plantsQuery,
-        (snapshot) => {
-          const plantsData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate(),
-            updatedAt: doc.data().updatedAt?.toDate(),
-            lastWatered: doc.data().lastWatered?.toDate(),
-            wateringSchedule: doc.data().wateringSchedule
-              ? {
-                  ...doc.data().wateringSchedule,
-                  lastWatered: doc.data().wateringSchedule.lastWatered?.toDate(),
-                }
-              : undefined,
-          })) as Plant[];
-          setPlants(plantsData);
-          setLoading(false);
-          setError(null);
-        },
-        (error) => {
-          console.error('Error fetching plants:', error);
-          setError('Error connecting to the database. Please check your internet connection.');
-          setLoading(false);
-        }
-      );
+    const unsubscribe = onSnapshot(
+      plantsQuery,
+      (snapshot) => {
+        const plantsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+          lastWatered: doc.data().lastWatered?.toDate(),
+          wateringSchedule: doc.data().wateringSchedule
+            ? {
+                ...doc.data().wateringSchedule,
+                lastWatered: doc.data().wateringSchedule.lastWatered?.toDate(),
+              }
+            : undefined,
+        })) as Plant[];
+        setPlants(plantsData);
+        setLoading(false);
+        setError(null);
+      },
+      (error) => {
+        console.error('Error fetching plants:', error);
+        setError('Error connecting to the database. Please check your internet connection.');
+        setLoading(false);
+      }
+    );
 
-      return () => unsubscribe();
-    } catch (error) {
-      console.error('Error setting up plants listener:', error);
-      setError('Error connecting to the database. Please check your internet connection.');
-      setLoading(false);
-    }
+    return () => unsubscribe();
   }, [user?.uid]);
 
   const uploadPhoto = async (file: File): Promise<string> => {
-    if (!user?.uid) throw new Error('You must be logged in to upload photos');
+    if (!user?.uid) throw new Error('Please log in again to upload photos');
     
     try {
       const storageRef = ref(storage, `plant-photos/${user.uid}/${Date.now()}-${file.name}`);
@@ -89,7 +81,7 @@ export function usePlants() {
   };
 
   const addPlant = async (data: Omit<Plant, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, photo?: File) => {
-    if (!user?.uid) throw new Error('You must be logged in to add a plant');
+    if (!user?.uid) throw new Error('Please log in again to add a plant');
 
     try {
       let photoUrl: string | undefined;
@@ -115,36 +107,51 @@ export function usePlants() {
     data: Omit<Plant, 'id' | 'userId' | 'createdAt' | 'updatedAt'>,
     photo?: File
   ) => {
-    if (!user?.uid) throw new Error('User not authenticated');
+    if (!user?.uid) throw new Error('Please log in again to update your plant');
 
-    let photoUrl: string | undefined;
-    if (photo) {
-      photoUrl = await uploadPhoto(photo);
+    try {
+      let photoUrl: string | undefined;
+      if (photo) {
+        photoUrl = await uploadPhoto(photo);
+      }
+
+      const plantRef = doc(db, 'plants', id);
+      await updateDoc(plantRef, {
+        ...data,
+        ...(photoUrl && { photo: photoUrl }),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error updating plant:', error);
+      throw new Error('Failed to update plant. Please try again.');
     }
-
-    const plantRef = doc(db, 'plants', id);
-    await updateDoc(plantRef, {
-      ...data,
-      ...(photoUrl && { photo: photoUrl }),
-      updatedAt: new Date(),
-    });
   };
 
   const deletePlant = async (id: string) => {
-    if (!user?.uid) throw new Error('User not authenticated');
+    if (!user?.uid) throw new Error('Please log in again to delete your plant');
 
-    const plantRef = doc(db, 'plants', id);
-    await deleteDoc(plantRef);
+    try {
+      const plantRef = doc(db, 'plants', id);
+      await deleteDoc(plantRef);
+    } catch (error) {
+      console.error('Error deleting plant:', error);
+      throw new Error('Failed to delete plant. Please try again.');
+    }
   };
 
   const updateWateringDate = async (id: string) => {
-    if (!user?.uid) throw new Error('User not authenticated');
+    if (!user?.uid) throw new Error('Please log in again to update watering date');
 
-    const plantRef = doc(db, 'plants', id);
-    await updateDoc(plantRef, {
-      lastWatered: new Date(),
-      updatedAt: new Date(),
-    });
+    try {
+      const plantRef = doc(db, 'plants', id);
+      await updateDoc(plantRef, {
+        lastWatered: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error updating watering date:', error);
+      throw new Error('Failed to update watering date. Please try again.');
+    }
   };
 
   return {

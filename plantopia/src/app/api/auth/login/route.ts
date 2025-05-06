@@ -1,31 +1,44 @@
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/firebase';
-import { getAuth } from 'firebase-admin/auth';
+import { createSessionCookie, verifyIdToken } from '@/lib/auth-edge';
+
+export const runtime = 'experimental-edge';
 
 export async function POST(request: Request) {
   try {
     const { idToken } = await request.json();
     
     if (!idToken) {
-      return NextResponse.json({ error: 'No ID token provided' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No ID token provided' }, 
+        { status: 400 }
+      );
+    }
+
+    // Verify the Firebase ID token first
+    let decodedToken;
+    try {
+      decodedToken = await verifyIdToken(idToken);
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return NextResponse.json(
+        { error: 'Invalid authentication token' },
+        { status: 401 }
+      );
     }
 
     // Create session cookie
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-    const sessionCookie = await getAuth().createSessionCookie(idToken, { expiresIn });
+    let sessionCookie;
+    try {
+      sessionCookie = await createSessionCookie(idToken, expiresIn);
+    } catch (error) {
+      console.error('Session creation failed:', error);
+      return NextResponse.json(
+        { error: 'Failed to create session' },
+        { status: 500 }
+      );
+    }
 
-    // Set the session cookie
-    cookies().set('session', sessionCookie, {
-      maxAge: expiresIn,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
-    });
-
-    // Get user data and set profile cookie
-    const decodedToken = await getAuth().verifyIdToken(idToken);
     const userProfile = {
       uid: decodedToken.uid,
       email: decodedToken.email,
@@ -34,19 +47,30 @@ export async function POST(request: Request) {
       completedOnboarding: false // This will be updated during onboarding
     };
 
-    cookies().set('userProfile', JSON.stringify(userProfile), {
-      maxAge: expiresIn,
+    const response = NextResponse.json({ status: 'success' });
+
+    // Set cookies in the response
+    response.cookies.set('session', sessionCookie, {
+      maxAge: expiresIn / 1000, // maxAge is in seconds
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/'
     });
 
-    return NextResponse.json({ status: 'success' });
+    response.cookies.set('userProfile', JSON.stringify(userProfile), {
+      maxAge: expiresIn / 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    return response;
   } catch (error) {
-    console.error('Error creating session:', error);
+    console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }
