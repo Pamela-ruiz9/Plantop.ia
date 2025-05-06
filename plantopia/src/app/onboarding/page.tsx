@@ -29,26 +29,36 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { profile, updateProfile } = useUser();
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<OnboardingForm>({
     resolver: zodResolver(onboardingSchema),
   });
 
   const detectLocation = async () => {
     setIsLoadingLocation(true);
+    setLocationError(null);
     try {
       if ('geolocation' in navigator) {
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject);
         });
-        
         const response = await fetch(
           `https://api.openweathermap.org/geo/1.0/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&limit=1&appid=${process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY}`
         );
-        
-        const [locationData] = await response.json();
-        setValue('location', `${locationData.name}, ${locationData.country}`);
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const locationData = data[0];
+          setValue('location', `${locationData.name}, ${locationData.country}`);
+        } else {
+          setValue('location', '');
+          setLocationError('Could not detect your location. Please enter it manually.');
+          console.error('Location data not found:', data);
+        }
+      } else {
+        setLocationError('Geolocation is not supported by your browser.');
       }
     } catch (error) {
+      setLocationError('Failed to detect location. Please enter it manually.');
       console.error('Error detecting location:', error);
     } finally {
       setIsLoadingLocation(false);
@@ -98,6 +108,9 @@ export default function OnboardingPage() {
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
               placeholder="Enter your city"
             />
+            {locationError && (
+              <p className="mt-1 text-sm text-red-600">{locationError}</p>
+            )}
             {errors.location && (
               <p className="mt-1 text-sm text-red-600">{errors.location.message}</p>
             )}
