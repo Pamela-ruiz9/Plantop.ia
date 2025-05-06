@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useUser } from '@/lib/hooks/useUser';
 import type { Plant } from '@/types/plant';
 
 interface AddPlantFormProps {
@@ -10,6 +11,7 @@ interface AddPlantFormProps {
 }
 
 export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormProps) {
+  const { user } = useUser();
   const [commonName, setCommonName] = useState(initialData?.commonName || '');
   const [species, setSpecies] = useState(initialData?.species || '');
   const [location, setLocation] = useState<'indoor' | 'outdoor' | undefined>(initialData?.location);
@@ -19,6 +21,7 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
   const [notes, setNotes] = useState(initialData?.notes || '');
   const [photo, setPhoto] = useState<File>();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [wateringFrequency, setWateringFrequency] = useState(
     initialData?.wateringSchedule?.frequency?.toString() || ''
   );
@@ -26,8 +29,13 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commonName) return;
+    if (!user) {
+      setError('You must be logged in to add a plant');
+      return;
+    }
 
     setLoading(true);
+    setError(null);
     try {
       await onSubmit(
         {
@@ -47,6 +55,7 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
       );
     } catch (error) {
       console.error('Error submitting plant:', error);
+      setError(error instanceof Error ? error.message : 'Failed to add plant. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -54,6 +63,21 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <label htmlFor="commonName" className="block text-sm font-medium text-gray-700">
           Common Name *
