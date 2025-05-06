@@ -4,8 +4,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GoogleSignInButton } from '../GoogleSignInButton';
 import { useRouter } from 'next/navigation';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { useAuthContext } from '@/lib/contexts/AuthContext';
 
 // Mock next/navigation
 const mockPush = jest.fn();
@@ -22,39 +20,22 @@ jest.mock('firebase/auth', () => ({
   signInWithPopup: jest.fn()
 }));
 
-// Mock Firebase instance
-jest.mock('@/lib/firebase', () => ({
-  auth: {}
-}));
-
-// Mock AuthContext
-jest.mock('@/lib/contexts/AuthContext', () => ({
-  useAuthContext: jest.fn(() => ({ user: null }))
-}));
-
 describe('GoogleSignInButton', () => {
   const mockSignInWithPopup = signInWithPopup as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Setup successful auth mock response
     mockSignInWithPopup.mockResolvedValue({
       user: {
-        getIdToken: () => Promise.resolve('mock-token'),
-        metadata: {
-          creationTime: '1',
-          lastSignInTime: '2'
-        }
+        getIdToken: () => Promise.resolve('mock-token')
       }
     });
 
-    global.fetch = jest.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: true })
-      })
-    );
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true })
+    });
   });
 
   afterEach(() => {
@@ -74,7 +55,13 @@ describe('GoogleSignInButton', () => {
 
     await waitFor(() => {
       expect(mockSignInWithPopup).toHaveBeenCalled();
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', expect.any(Object));
+      expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ token: 'mock-token' })
+      });
       expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
   });
@@ -89,7 +76,7 @@ describe('GoogleSignInButton', () => {
     await fireEvent.click(button);
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error signing in with Google:', expect.any(Error));
       expect(mockPush).not.toHaveBeenCalled();
     });
 

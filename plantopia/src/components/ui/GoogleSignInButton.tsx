@@ -3,11 +3,9 @@
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
-import { useAuthContext } from '@/lib/contexts/AuthContext';
 
 export const GoogleSignInButton = () => {
   const router = useRouter();
-  const { user } = useAuthContext();
 
   const handleSignIn = async () => {
     try {
