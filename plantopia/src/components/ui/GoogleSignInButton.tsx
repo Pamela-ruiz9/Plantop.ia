@@ -1,22 +1,26 @@
 'use client';
 
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
 import { useAuthContext } from '@/lib/contexts/AuthContext';
 
-export function GoogleSignInButton() {
+export const GoogleSignInButton = () => {
   const router = useRouter();
   const { user } = useAuthContext();
 
   const handleSignIn = async () => {
     try {
       const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+      provider.setCustomParameters({
+        prompt: 'select_account',
+      });
+
       const result = await signInWithPopup(auth, provider);
-      
-      // Create session cookie
       const idToken = await result.user.getIdToken();
-      await fetch('/api/auth/login', {
+
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -24,10 +28,7 @@ export function GoogleSignInButton() {
         body: JSON.stringify({ token: idToken }),
       });
 
-      // Redirect based on onboarding status
-      if (result.user.metadata.creationTime === result.user.metadata.lastSignInTime) {
-        router.push('/onboarding');
-      } else {
+      if (response.ok) {
         router.push('/dashboard');
       }
     } catch (error) {
@@ -61,4 +62,4 @@ export function GoogleSignInButton() {
       Sign in with Google
     </button>
   );
-}
+};
