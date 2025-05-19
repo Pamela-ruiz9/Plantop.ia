@@ -55,7 +55,6 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
       router.push('/login');
     }
   }, [user, userLoading, router]);
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
@@ -89,6 +88,9 @@ export function AddPlantForm({ onSubmit, onCancel, initialData }: AddPlantFormPr
           : `Successfully added ${commonName}`,
         'success'
       );
+      
+      // Cierra automáticamente el formulario después de enviar exitosamente
+      onCancel();
       
       // Reset form after successful submission if it's not an update
       if (!initialData) {

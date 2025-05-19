@@ -31,7 +31,7 @@ const plantTypes = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { profile, updateProfile } = useUser();
+  const { profile, updateProfile, loading } = useUser();
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -104,8 +104,7 @@ export default function OnboardingPage() {
     } finally {
       setIsLoadingLocation(false);
     }
-  };
-  const onSubmit = async (data: OnboardingForm) => {
+  };  const onSubmit = async (data: OnboardingForm) => {
     if (!profile) {
       showToast('Please sign in to continue', 'error');
       return;
@@ -121,10 +120,8 @@ export default function OnboardingPage() {
       });
       showToast('¡Configuración completada exitosamente!', 'success');
       
-      // Mostrar un breve retardo antes de redirigir para que el usuario vea el mensaje
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1500);
+      // Redirigir inmediatamente al dashboard después de completar el onboarding
+      router.push('/dashboard');
       
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -132,19 +129,18 @@ export default function OnboardingPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  useEffect(() => {
-    if (profile?.completedOnboarding) {
+  };  useEffect(() => {
+    // Si el usuario ya completó el onboarding, redirigir al dashboard
+    if (!loading && profile?.completedOnboarding) {
       router.push('/dashboard');
     }
-  }, [profile, router]);
-
+  }, [profile, router, loading]);
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Loading...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando perfil...</p>
         </div>
       </div>
     );

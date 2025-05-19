@@ -138,14 +138,13 @@ export function usePlants() {
       throw new Error('Failed to delete plant. Please try again.');
     }
   };
-
   const updateWateringDate = async (id: string) => {
     if (!user?.uid) throw new Error('Please log in again to update watering date');
 
     try {
       const plantRef = doc(db, 'plants', id);
       await updateDoc(plantRef, {
-        lastWatered: serverTimestamp(),
+        'wateringSchedule.lastWatered': new Date(),
         updatedAt: serverTimestamp(),
       });
     } catch (error) {

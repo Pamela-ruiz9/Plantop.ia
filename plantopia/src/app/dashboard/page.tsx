@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { useUser } from '@/lib/hooks/useUser';
 import { usePlants } from '@/lib/hooks/usePlants';
 import { PlantCard } from '@/components/ui/PlantCard';
@@ -9,23 +10,57 @@ import { Typography } from '@/design-system/components/Typography';
 import { Button } from '@/design-system/components/Button';
 import { Container } from '@/design-system/components/Container';
 import { useToast } from '@/lib/contexts/ToastContext';
+import { differenceInDays } from 'date-fns';
 import type { Plant } from '@/types/plant';
 
 export default function DashboardPage() {
   const { profile, updateProfile } = useUser();
   const { showToast } = useToast();
-  const { plants, loading, addPlant, updatePlant, deletePlant, updateWateringDate } = usePlants();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
+  const { plants, loading, updateWateringDate, updatePlant, deletePlant } = usePlants();
+  const [isWatering, setIsWatering] = useState<string | null>(null);
   const [skipOnboarding, setSkipOnboarding] = useState(false);
+  const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const handleAddPlant = async (data: Omit<Plant, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, photo?: File) => {
+  // Calcular las plantas que necesitan ser regadas pronto (en los próximos 2 días)
+  const plantsNeedingWater = useMemo(() => {
+    if (!plants.length) return [];
+    
+    return plants.filter(plant => {
+      if (!plant.wateringSchedule?.lastWatered || !plant.wateringSchedule?.frequency) {
+        return false;
+      }
+      
+      const lastWatered = new Date(plant.wateringSchedule.lastWatered);
+      const today = new Date();
+      const daysSinceWatering = differenceInDays(today, lastWatered);
+      const daysUntilNextWatering = plant.wateringSchedule.frequency - daysSinceWatering;
+      
+      return daysUntilNextWatering <= 2 && daysUntilNextWatering >= 0;
+    });
+  }, [plants]);
+
+  // Clasificar plantas por tipo de ubicación
+  const indoorPlants = useMemo(() => 
+    plants.filter(plant => plant.location === 'indoor'),
+    [plants]
+  );
+  
+  const outdoorPlants = useMemo(() => 
+    plants.filter(plant => plant.location === 'outdoor'),
+    [plants]
+  );
+
+  const handleWatering = async (id: string, name: string) => {
     try {
-      await addPlant(data, photo);
-      setShowAddForm(false);
-      showToast('Planta añadida exitosamente', 'success');
+      setIsWatering(id);
+      await updateWateringDate(id);
+      showToast(`Watering recorded for ${name}`, 'success');
     } catch (error) {
-      showToast('Error al añadir la planta', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update watering date';
+      showToast(errorMessage, 'error');
+    } finally {
+      setIsWatering(null);
     }
   };
 
@@ -70,6 +105,16 @@ export default function DashboardPage() {
       showToast('Dashboard accesible ahora', 'success');
     } catch (error) {
       showToast('Error al actualizar el perfil', 'error');
+    }
+  };
+  const handleAddPlant = async (data: Omit<Plant, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, photo?: File) => {
+    try {
+      await usePlants().addPlant(data, photo);
+      // El formulario se cerrará automáticamente gracias a la modificación en AddPlantForm
+      showToast(`Planta ${data.commonName} añadida exitosamente`, 'success');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error al añadir la planta';
+      showToast(errorMessage, 'error');
     }
   };
 

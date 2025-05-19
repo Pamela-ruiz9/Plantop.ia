@@ -18,8 +18,13 @@ export const metadata: Metadata = {
   title: "Plantop.ia",
   description: "Intelligent plant care application",
   icons: {
-    icon: "/logo-square.svg",
-    apple: "/logo-square.svg"
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/plantopia-icon.png', type: 'image/png', sizes: '192x192' }
+    ],
+    apple: [
+      { url: '/plantopia-icon.png', sizes: '180x180', type: 'image/png' }
+    ],
   },
 };
 

@@ -11,8 +11,10 @@ import { Avatar } from '@/design-system/components/Avatar';
 interface PlantCardProps {
   plant: Plant;
   onWater: () => void;
-  onEdit: () => void;
+  onEdit: () => string | void;
   onDelete: () => void;
+  isDeleting?: boolean;
+  isWatering?: boolean;
 }
 
 const healthStatusVariants = {
@@ -29,10 +31,19 @@ const healthStatusLabels = {
   unknown: 'Unknown Status',
 } as const;
 
-export function PlantCard({ plant, onWater, onEdit, onDelete }: PlantCardProps) {
+export function PlantCard({ 
+  plant, 
+  onWater, 
+  onEdit, 
+  onDelete, 
+  isDeleting = false, 
+  isWatering = false 
+}: PlantCardProps) {
   const healthStatus = plant.healthStatus || 'unknown';
   const badgeVariant = healthStatusVariants[healthStatus] as 'success' | 'warning' | 'error' | 'default';
   const statusLabel = healthStatusLabels[healthStatus];
+  
+  const editUrl = typeof onEdit === 'function' ? onEdit() : undefined;
 
   return (
     <Card variant="elevated" className="overflow-hidden">
@@ -107,28 +118,43 @@ export function PlantCard({ plant, onWater, onEdit, onDelete }: PlantCardProps) 
             </div>
           )}
         </div>
-      </Card.Content>
-
-      <Card.Footer className="flex justify-end space-x-2">
+      </Card.Content>      <Card.Footer className="flex justify-end space-x-2">
         <Button
           variant="outline"
           size="sm"
           onClick={onWater}
+          loading={isWatering}
+          disabled={isWatering || isDeleting}
         >
           Water Plant
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onEdit}
-        >
-          Edit
-        </Button>
+        {editUrl ? (
+          <a href={editUrl}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isWatering || isDeleting}
+            >
+              Edit
+            </Button>
+          </a>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEdit as () => void}
+            disabled={isWatering || isDeleting}
+          >
+            Edit
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
           color="error"
           onClick={onDelete}
+          loading={isDeleting}
+          disabled={isWatering || isDeleting}
         >
           Delete
         </Button>

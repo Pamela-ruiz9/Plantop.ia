@@ -18,11 +18,11 @@ export const GoogleSignInButton = () => {
       provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
       provider.setCustomParameters({
         prompt: 'select_account',
-      });
-
+      });      // Realizar [autenticación] con popup
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
 
+      // Enviar el token al servidor para crear una sesión
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -37,8 +37,16 @@ export const GoogleSignInButton = () => {
         throw new Error(data.error || 'Login failed');
       }
 
-      await router.push('/dashboard');
-      router.refresh();
+      // Cerrar automáticamente y redireccionar al dashboard
+      // Esperamos un breve momento para asegurar que la cookie de sesión esté establecida
+      setTimeout(() => {
+        // Cerramos la sesión en el cliente pero mantenemos la cookie de sesión
+        auth.signOut().then(() => {
+          // Redirigir al dashboard usando el cookie de sesión
+          router.push('/dashboard');
+          router.refresh();
+        });
+      }, 500);
     } catch (error) {
       console.error('Error signing in with Google:', error);
       setError(error instanceof Error ? error.message : 'Failed to sign in. Please try again.');
@@ -84,9 +92,8 @@ export const GoogleSignInButton = () => {
           <path
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             fill="#EA4335"
-          />
-        </svg>
-        {loading ? 'Signing in...' : 'Sign in with Google'}
+          />        </svg>
+        {loading ? 'Iniciando sesión...' : 'Iniciar sesión con Google'}
       </button>
     </div>
   );
