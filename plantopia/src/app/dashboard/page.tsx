@@ -5,32 +5,27 @@ import { useUser } from '@/lib/hooks/useUser';
 import { usePlants } from '@/lib/hooks/usePlants';
 import { PlantCard } from '@/components/ui/PlantCard';
 import { AddPlantForm } from '@/components/ui/AddPlantForm';
-import { Toast } from '@/components/ui/Toast';
+import { Typography } from '@/design-system/components/Typography';
+import { Button } from '@/design-system/components/Button';
+import { Container } from '@/design-system/components/Container';
+import { useToast } from '@/lib/contexts/ToastContext';
 import type { Plant } from '@/types/plant';
 
-interface ToastState {
-  message: string;
-  type: 'success' | 'error' | 'info';
-}
-
 export default function DashboardPage() {
-  const { profile } = useUser();
+  const { profile, updateProfile } = useUser();
+  const { showToast } = useToast();
   const { plants, loading, addPlant, updatePlant, deletePlant, updateWateringDate } = usePlants();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
-  const [toast, setToast] = useState<ToastState | null>(null);
-
-  const showToast = (message: string, type: ToastState['type'] = 'success') => {
-    setToast({ message, type });
-  };
+  const [skipOnboarding, setSkipOnboarding] = useState(false);
 
   const handleAddPlant = async (data: Omit<Plant, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, photo?: File) => {
     try {
       await addPlant(data, photo);
       setShowAddForm(false);
-      showToast('Plant added successfully');
+      showToast('Planta añadida exitosamente', 'success');
     } catch (error) {
-      showToast('Failed to add plant', 'error');
+      showToast('Error al añadir la planta', 'error');
     }
   };
 
@@ -39,19 +34,19 @@ export default function DashboardPage() {
     try {
       await updatePlant(editingPlant.id, data, photo);
       setEditingPlant(null);
-      showToast('Plant updated successfully');
+      showToast('Planta actualizada exitosamente', 'success');
     } catch (error) {
-      showToast('Failed to update plant', 'error');
+      showToast('Error al actualizar la planta', 'error');
     }
   };
 
   const handleDeletePlant = async (id: string) => {
-    if (confirm('Are you sure you want to delete this plant?')) {
+    if (confirm('¿Estás seguro de que quieres eliminar esta planta?')) {
       try {
         await deletePlant(id);
-        showToast('Plant deleted successfully');
+        showToast('Planta eliminada exitosamente', 'success');
       } catch (error) {
-        showToast('Failed to delete plant', 'error');
+        showToast('Error al eliminar la planta', 'error');
       }
     }
   };
@@ -59,81 +54,106 @@ export default function DashboardPage() {
   const handleWaterPlant = async (id: string) => {
     try {
       await updateWateringDate(id);
-      showToast('Watering date updated');
+      showToast('Fecha de riego actualizada', 'success');
     } catch (error) {
-      showToast('Failed to update watering date', 'error');
+      showToast('Error al actualizar la fecha de riego', 'error');
     }
   };
 
-  if (!profile?.completedOnboarding) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold">Complete Your Profile</h2>
-          <p className="mt-2 text-gray-600">Please complete the onboarding process to access your dashboard.</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSkipOnboarding = async () => {
+    try {
+      await updateProfile({
+        ...profile,
+        completedOnboarding: true,
+      });
+      setSkipOnboarding(true);
+      showToast('Dashboard accesible ahora', 'success');
+    } catch (error) {
+      showToast('Error al actualizar el perfil', 'error');
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <Container maxWidth="sm" className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-500 border-t-transparent"></div>
-          <p className="mt-2 text-gray-600">Loading your plants...</p>
+          <Typography variant="body2" className="mt-2 text-gray-600">Cargando tus plantas...</Typography>
         </div>
-      </div>
+      </Container>
+    );
+  }
+
+  if (!profile?.completedOnboarding && !skipOnboarding) {
+    return (
+      <Container maxWidth="sm" className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Typography variant="h3" className="mb-4">Completa tu Perfil</Typography>
+          <Typography variant="body1" color="secondary" className="mb-6">
+            Para una mejor experiencia, recomendamos completar la configuración inicial de tu perfil.
+          </Typography>
+          <div className="space-y-4">
+            <Button
+              variant="primary"
+              onClick={() => window.location.href = '/onboarding'}
+              className="w-full"
+            >
+              Ir a Configuración
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleSkipOnboarding}
+              className="w-full"
+            >
+              Saltar por ahora
+            </Button>
+          </div>
+        </div>
+      </Container>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-7xl">
+      <Container maxWidth="2xl">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Welcome, {profile.displayName}</h1>
-            <p className="mt-1 text-gray-600">Manage your plant collection</p>
+            <Typography variant="h2">Bienvenido, {profile?.displayName}</Typography>
+            <Typography variant="body1" color="secondary" className="mt-1">
+              Gestiona tu colección de plantas
+            </Typography>
           </div>
           {!showAddForm && !editingPlant && (
-            <button
+            <Button
+              variant="primary"
               onClick={() => setShowAddForm(true)}
-              className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
-              Add New Plant
-            </button>
+              Añadir Planta
+            </Button>
           )}
         </div>
 
-        {(showAddForm || editingPlant) && (
-          <div className="mb-8 rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-6 text-xl font-semibold">
-              {editingPlant ? 'Edit Plant' : 'Add New Plant'}
-            </h2>
+        {showAddForm && (
+          <div className="mb-8">
             <AddPlantForm
-              onSubmit={editingPlant ? handleUpdatePlant : handleAddPlant}
-              onCancel={() => {
-                setShowAddForm(false);
-                setEditingPlant(null);
-              }}
-              initialData={editingPlant || undefined}
+              onSubmit={handleAddPlant}
+              onCancel={() => setShowAddForm(false)}
             />
           </div>
         )}
 
-        {plants.length === 0 && !showAddForm ? (
-          <div className="rounded-lg bg-white p-8 text-center shadow">
-            <h3 className="text-lg font-medium">No plants yet</h3>
-            <p className="mt-2 text-gray-600">Add your first plant to get started!</p>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="mt-4 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            >
-              Add Plant
-            </button>
+        {editingPlant && (
+          <div className="mb-8">
+            <AddPlantForm
+              initialData={editingPlant}
+              onSubmit={handleUpdatePlant}
+              onCancel={() => setEditingPlant(null)}
+            />
           </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        )}
+
+        {!showAddForm && !editingPlant && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {plants.map((plant) => (
               <PlantCard
                 key={plant.id}
@@ -143,17 +163,17 @@ export default function DashboardPage() {
                 onDelete={() => handleDeletePlant(plant.id)}
               />
             ))}
+            {plants.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <Typography variant="h4" className="mb-2">No tienes plantas aún</Typography>
+                <Typography variant="body1" color="secondary">
+                  Comienza añadiendo tu primera planta
+                </Typography>
+              </div>
+            )}
           </div>
         )}
-
-        {toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        )}
-      </div>
+      </Container>
     </div>
   );
 }

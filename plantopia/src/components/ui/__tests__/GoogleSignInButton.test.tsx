@@ -67,13 +67,12 @@ describe('GoogleSignInButton', () => {
     await waitFor(() => {
       expect(mockProvider.addScope).toHaveBeenCalledWith('https://www.googleapis.com/auth/userinfo.profile');
       expect(mockProvider.setCustomParameters).toHaveBeenCalledWith({ prompt: 'select_account' });
-      expect(mockSignInWithPopup).toHaveBeenCalledWith({}, mockProvider);
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
+      expect(mockSignInWithPopup).toHaveBeenCalledWith({}, mockProvider);      expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ token: 'mock-token' })
+        body: JSON.stringify({ idToken: 'mock-token' })
       });
       expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });

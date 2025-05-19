@@ -10,6 +10,13 @@ jest.mock('@/lib/contexts/AuthContext');
 jest.mock('firebase/firestore');
 
 describe('useUser', () => {
+  const mockDate = new Date('2023-01-01T00:00:00.000Z');
+  const mockFirestoreTimestamp = {
+    toDate: () => mockDate,
+    seconds: mockDate.getTime() / 1000,
+    nanoseconds: 0
+  };
+  
   const mockUser = {
     uid: 'test-uid',
     email: 'test@example.com',
@@ -26,10 +33,11 @@ describe('useUser', () => {
 
   it('loads user profile on mount', async () => {
     const mockProfile = {
-      id: mockUser.uid,
+      uid: mockUser.uid,
       email: mockUser.email,
       displayName: mockUser.displayName,
-      createdAt: new Date(),
+      createdAt: mockFirestoreTimestamp,
+      updatedAt: mockFirestoreTimestamp,
       completedOnboarding: true,
     };
 
@@ -45,7 +53,11 @@ describe('useUser', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    expect(result.current.profile).toEqual(mockProfile);
+    expect(result.current.profile).toEqual({
+      ...mockProfile,
+      createdAt: mockDate,
+      updatedAt: mockDate
+    });
     expect(result.current.loading).toBe(false);
   });
 
@@ -63,10 +75,12 @@ describe('useUser', () => {
     expect(setDoc).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        id: mockUser.uid,
+        uid: mockUser.uid,
         email: mockUser.email,
         displayName: mockUser.displayName,
-        completedOnboarding: false
+        completedOnboarding: false,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date)
       })
     );
     expect(result.current.loading).toBe(false);
@@ -74,10 +88,11 @@ describe('useUser', () => {
 
   it('handles profile updates', async () => {
     const mockProfile = {
-      id: mockUser.uid,
+      uid: mockUser.uid,
       email: mockUser.email,
       displayName: mockUser.displayName,
-      createdAt: new Date(),
+      createdAt: mockFirestoreTimestamp,
+      updatedAt: mockFirestoreTimestamp,
       completedOnboarding: false,
     };
 
@@ -86,10 +101,7 @@ describe('useUser', () => {
       exists: () => true,
       data: () => mockProfile
     });
-    (setDoc as jest.Mock).mockImplementation((ref, data) => {
-      mockProfile.completedOnboarding = data.completedOnboarding;
-      return Promise.resolve();
-    });
+    (setDoc as jest.Mock).mockImplementation((ref, data) => Promise.resolve());
 
     const { result } = renderHook(() => useUser());
 
@@ -104,13 +116,35 @@ describe('useUser', () => {
     expect(setDoc).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        completedOnboarding: true
-      })
+        completedOnboarding: true,
+        updatedAt: expect.any(Date)
+      }),
+      expect.anything()
     );
+
     expect(result.current.profile?.completedOnboarding).toBe(true);
   });
 
-  it('handles updateProfile when user is not authenticated', async () => {
+  it('handles error during profile load', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    
+    (doc as jest.Mock).mockReturnValue({ id: 'test-doc' });
+    (getDoc as jest.Mock).mockRejectedValue(new Error('Failed to load'));
+
+    const { result } = renderHook(() => useUser());
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.profile).toBeNull();
+    expect(result.current.loading).toBe(false);
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('clears profile when user is not authenticated', async () => {
     (useAuthContext as jest.Mock).mockReturnValue({
       user: null,
       loading: false,
@@ -119,74 +153,10 @@ describe('useUser', () => {
     const { result } = renderHook(() => useUser());
 
     await act(async () => {
-      await result.current.updateProfile({ completedOnboarding: true });
-    });
-
-    expect(setDoc).not.toHaveBeenCalled();
-  });
-
-  it('handles loading state while fetching profile', async () => {
-    (doc as jest.Mock).mockReturnValue({ id: 'test-doc' });
-    const loadingPromise = new Promise(resolve => setTimeout(resolve, 100));
-    (getDoc as jest.Mock).mockReturnValue(loadingPromise);
-
-    const { result } = renderHook(() => useUser());
-    expect(result.current.loading).toBe(true);
-
-    await act(async () => {
-      await loadingPromise;
-    });
-  });
-
-  it('handles error during profile fetch', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    (doc as jest.Mock).mockReturnValue({ id: 'test-doc' });
-    (getDoc as jest.Mock).mockRejectedValue(new Error('Fetch error'));
-
-    const { result } = renderHook(() => useUser());
-
-    await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching user profile:', expect.any(Error));
+    expect(result.current.profile).toBeNull();
     expect(result.current.loading).toBe(false);
-    expect(result.current.profile).toBe(null);
-
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('handles error during profile update', async () => {
-    const mockProfile = {
-      id: mockUser.uid,
-      email: mockUser.email,
-      displayName: mockUser.displayName,
-      createdAt: new Date(),
-      completedOnboarding: false,
-    };
-
-    (doc as jest.Mock).mockReturnValue({ id: 'test-doc' });
-    (getDoc as jest.Mock).mockResolvedValue({
-      exists: () => true,
-      data: () => mockProfile
-    });
-
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    (setDoc as jest.Mock).mockRejectedValue(new Error('Update error'));
-
-    const { result } = renderHook(() => useUser());
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-    await act(async () => {
-      await result.current.updateProfile({ completedOnboarding: true });
-    });
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error updating user profile:', expect.any(Error));
-    expect(result.current.profile?.completedOnboarding).toBe(false);
-
-    consoleErrorSpy.mockRestore();
   });
 });

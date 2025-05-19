@@ -2,6 +2,11 @@
 
 import { format } from 'date-fns';
 import type { Plant } from '@/types/plant';
+import { Card } from '@/design-system/components/Card';
+import { Typography } from '@/design-system/components/Typography';
+import { Badge } from '@/design-system/components/Badge';
+import { Button } from '@/design-system/components/Button';
+import { Avatar } from '@/design-system/components/Avatar';
 
 interface PlantCardProps {
   plant: Plant;
@@ -10,22 +15,27 @@ interface PlantCardProps {
   onDelete: () => void;
 }
 
+const healthStatusVariants = {
+  healthy: 'success',
+  needsAttention: 'warning',
+  sick: 'error',
+  unknown: 'default',
+} as const;
+
+const healthStatusLabels = {
+  healthy: 'Healthy',
+  needsAttention: 'Needs Attention',
+  sick: 'Sick',
+  unknown: 'Unknown Status',
+} as const;
+
 export function PlantCard({ plant, onWater, onEdit, onDelete }: PlantCardProps) {
-  const getHealthStatusColor = () => {
-    switch (plant.healthStatus) {
-      case 'healthy':
-        return 'bg-green-100 text-green-800';
-      case 'needsAttention':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'sick':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const healthStatus = plant.healthStatus || 'unknown';
+  const badgeVariant = healthStatusVariants[healthStatus] as 'success' | 'warning' | 'error' | 'default';
+  const statusLabel = healthStatusLabels[healthStatus];
 
   return (
-    <div className="overflow-hidden rounded-lg bg-white shadow">
+    <Card variant="elevated" className="overflow-hidden">
       <div className="relative h-48">
         {plant.photo ? (
           <img
@@ -35,79 +45,94 @@ export function PlantCard({ plant, onWater, onEdit, onDelete }: PlantCardProps) 
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gray-100">
-            <svg
-              className="h-12 w-12 text-gray-300"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
+            <Avatar
+              src={null}
+              alt={plant.commonName}
+              size="xl"
+              fallback={plant.commonName}
+              className="h-24 w-24"
+            />
           </div>
         )}
       </div>
 
-      <div className="p-4">
-        <div className="mb-2 flex items-start justify-between">
+      <Card.Content>
+        <div className="mb-4 flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-semibold">{plant.commonName}</h3>
+            <Typography variant="h4" className="mb-1">{plant.commonName}</Typography>
             {plant.species && (
-              <p className="text-sm text-gray-600 italic">{plant.species}</p>
+              <Typography variant="body2" color="secondary" className="italic">
+                {plant.species}
+              </Typography>
             )}
           </div>
           {plant.healthStatus && (
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getHealthStatusColor()}`}
-            >
-              {plant.healthStatus}
-            </span>
+            <Badge variant={badgeVariant} size="sm">
+              {statusLabel}
+            </Badge>
           )}
         </div>
 
-        {plant.location && (
-          <p className="mb-2 text-sm text-gray-600">
-            Location: {plant.location}
-          </p>
-        )}
+        <div className="space-y-2">
+          {plant.location && (
+            <div className="flex items-center gap-2">
+              <Typography variant="body2" color="secondary">
+                Location:
+              </Typography>
+              <Typography variant="body2">
+                {plant.location === 'indoor' ? 'Indoor' : 'Outdoor'}
+              </Typography>
+            </div>
+          )}
 
-        {plant.lastWatered && (
-          <p className="mb-2 text-sm text-gray-600">
-            Last watered: {format(plant.lastWatered, 'PP')}
-          </p>
-        )}
+          {plant.wateringSchedule?.lastWatered && (
+            <div className="flex items-center gap-2">
+              <Typography variant="body2" color="secondary">
+                Last watered:
+              </Typography>
+              <Typography variant="body2">
+                {format(new Date(plant.wateringSchedule.lastWatered), 'PP')}
+              </Typography>
+            </div>
+          )}
 
-        {plant.notes && (
-          <p className="mb-4 text-sm text-gray-600">
-            Notes: {plant.notes}
-          </p>
-        )}
-
-        <div className="flex justify-end space-x-2">
-          <button
-            onClick={onWater}
-            className="inline-flex items-center rounded bg-blue-100 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
-          >
-            Water
-          </button>
-          <button
-            onClick={onEdit}
-            className="inline-flex items-center rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
-          >
-            Edit
-          </button>
-          <button
-            onClick={onDelete}
-            className="inline-flex items-center rounded bg-red-100 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200"
-          >
-            Delete
-          </button>
+          {plant.notes && (
+            <div className="mt-4">
+              <Typography variant="body2" color="secondary">
+                Notes:
+              </Typography>
+              <Typography variant="body2" className="mt-1">
+                {plant.notes}
+              </Typography>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+      </Card.Content>
+
+      <Card.Footer className="flex justify-end space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onWater}
+        >
+          Water Plant
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onEdit}
+        >
+          Edit
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          color="error"
+          onClick={onDelete}
+        >
+          Delete
+        </Button>
+      </Card.Footer>
+    </Card>
   );
 }
