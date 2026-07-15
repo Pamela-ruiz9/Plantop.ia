@@ -79,8 +79,8 @@ Todas con RLS activo — cada usuario solo puede ver/modificar sus propias plant
 
 ## Pendientes conocidos
 
-- Signup real de punta a punta sin rate-limit (pendiente de probar en producción)
-- Deploy: GitHub Pages + Actions (en progreso, ver PR #1 del repo)
+- **Signup real sin probar de punta a punta.** El proyecto de Supabase usa el mailer integrado (sin SMTP propio configurado), limitado a 2 correos/hora — configurar un proveedor SMTP en Auth → SMTP Settings del dashboard de Supabase antes de producción real, o confirmar usuarios manualmente para pruebas.
+- Deploy: GitHub Pages + Actions (workflow en `.github/workflows/deploy-pages.yml`, dispara en push a `main`)
 
 ## Más documentación
 

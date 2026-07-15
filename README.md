@@ -18,8 +18,8 @@
 
 ### ⏳ Pendiente
 - Verificación de clics reales en navegador (solo se verificó build + endpoints HTTP 200 + CRUD contra Supabase por separado)
-- Signup real de punta a punta (bloqueado por rate-limit de Supabase durante pruebas)
-- Deploy público (GitHub Pages + Actions — en progreso)
+- **Signup real de punta a punta sin probar.** El proyecto de Supabase no tiene SMTP propio configurado, así que usa el mailer integrado de Supabase con límite de **2 correos/hora** — las pruebas de registro se topan con ese límite rápido. Para producción real hay que configurar un proveedor SMTP (Resend, Postmark, etc.) en el dashboard de Supabase (Auth → SMTP Settings) o confirmar usuarios manualmente mientras se prueba.
+- Deploy público (GitHub Pages + Actions — ver estado abajo)
 - Dominio propio (`plantopia.mx` está disponible pero aún no comprado)
 
 ## 🛠️ Tech Stack
