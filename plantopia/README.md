@@ -1,43 +1,89 @@
-# Astro Starter Kit: Minimal
+# Plantopia — Astro + Supabase
 
-```sh
-npm create astro@latest -- --template minimal
+App de bitácora de plantas: sustrato, luz, riego, fertilización y fase de vida, con historial de eventos.
+
+## Stack
+
+- [Astro](https://astro.build) (`output: static`) + TypeScript
+- [Supabase](https://supabase.com) — Postgres + Auth + Row Level Security
+- Tailwind CSS v4
+- Dexie (IndexedDB, caché offline)
+
+## Desarrollo local
+
+1. Instala dependencias:
+
+   ```sh
+   npm install
+   ```
+
+2. Copia `.env.example` a `.env` y llena las variables con tu proyecto de Supabase:
+
+   ```env
+   PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+   PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
+   ```
+
+3. Aplica el esquema a tu proyecto de Supabase (`supabase/migrations/0001_init.sql`), vía SQL editor del dashboard o `psql` contra el connection pooler.
+
+4. Corre el servidor de desarrollo:
+
+   ```sh
+   npm run dev
+   ```
+
+   Abre [http://localhost:4321](http://localhost:4321).
+
+## Estructura
+
+```
+src/
+├── pages/
+│   ├── index.astro          # listado de plantas
+│   ├── login.astro          # login / signup
+│   └── plants/
+│       ├── new.astro        # alta de planta
+│       ├── edit.astro       # edición
+│       └── detail.astro     # detalle + historial de eventos/fases
+├── components/
+│   └── PlantForm.astro      # formulario compartido alta/edición
+├── lib/
+│   ├── supabase.ts          # cliente Supabase
+│   ├── plants.ts            # queries CRUD de plantas
+│   ├── plant-form.ts        # helpers del formulario
+│   ├── session.ts           # manejo de sesión
+│   └── labels.ts            # labels de enums (fase, luz, etc.)
+└── types/
+    └── database.ts          # tipos generados del esquema
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Esquema de datos
 
-## 🚀 Project Structure
+Ver `supabase/migrations/0001_init.sql`. Tablas principales:
 
-Inside of your Astro project, you'll see the following folders and files:
+- `plants` — datos de cada planta (nombre, sustrato, luz, riego, fertilización, fase actual)
+- `plant_events` — bitácora libre de eventos (trasplante, poda, plaga, etc.)
+- `plant_phase_log` — historial de cambios de fase de vida
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+Todas con RLS activo — cada usuario solo puede ver/modificar sus propias plantas.
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Comandos
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+| Comando           | Acción                                          |
+| :----------------- | :----------------------------------------------- |
+| `npm install`       | Instala dependencias                             |
+| `npm run dev`       | Servidor local en `localhost:4321`               |
+| `npm run build`     | Build de producción a `./dist/`                  |
+| `npm run preview`   | Preview del build antes de deploy                |
+| `npm run astro ...` | Comandos CLI de Astro (`astro add`, `astro check`)|
 
-Any static assets, like images, can be placed in the `public/` directory.
+## Pendientes conocidos
 
-## 🧞 Commands
+- Botón de "cambiar de fase" en la UI (función ya existe en `lib/plants.ts`, falta exponerla)
+- Signup real de punta a punta sin rate-limit (pendiente de probar en producción)
+- Deploy: GitHub Pages + Actions (en progreso, ver PR #1 del repo)
 
-All commands are run from the root of the project, from a terminal:
+## Más documentación
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- `docs/plan-migracion-astro-supabase.md` — plan completo de migración (infra + features)
+- `../SUPABASE_SETUP.md` — credenciales del proyecto Supabase (NO subir al repo — está en `.gitignore`)

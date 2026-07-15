@@ -1,7 +1,30 @@
 # Plan: Migración a Astro + Supabase + PWA/App instalable
 
 **Fecha:** 4 julio 2026
+**Última actualización:** 15 julio 2026 — infraestructura + CRUD completos, ver estado abajo
 **Contexto:** Plantop.ia está congelado desde mayo 2025 (Next.js + Firebase, solo CRUD básico de plantas). Se decide reconstruir sobre el mismo patrón de Rastrum: Astro (static) + Supabase + PWA instalable, y aprovechar para meter el modelo de datos completo (sustrato, luz, ciclos de floración/recesión).
+
+## 📍 Estado (15 julio 2026)
+
+**Fase de infraestructura: ✅ completa y verificada.**
+
+- Proyecto Astro (static) + Tailwind v4 + PWA instalable — hecho
+- Proyecto Supabase real creado (`nlameaniuxrqhqnkqkxv`), esquema completo aplicado con RLS — hecho y verificado en vivo (queries reales contra la DB)
+- Auth Firebase → Supabase Auth (email/password) — hecho
+- Firestore → Postgres (Supabase) — hecho, incluye el modelo de datos ampliado (sustrato, luz, fertilización, fase, `plant_events`, `plant_phase_log`) desde el día 1, como se planeó
+- CRUD de plantas (alta, edición, borrado, listado con RLS) — hecho y verificado contra Supabase real
+- Vista de detalle con historial de eventos y fases — hecho (solo lectura por ahora)
+
+**Pendiente de esta fase:**
+- Testing + CI (Vitest/Playwright) — no iniciado
+- Deploy — en progreso (GitHub Pages + Actions)
+- Dominio propio — `plantopia.mx` disponible, no comprado aún
+- Offline-first con Dexie — dependencia instalada, integración pendiente
+- Google OAuth (se implementó email/password en su lugar por ahora)
+
+**Features de UI ampliadas** (timeline visual, botón de cambio de fase, indicadores por fase) — pendientes, ver sección de Features abajo.
+
+---
 
 **Referencia de patrón:** `~/projects/rastrum` — Astro 5 (output: static) + Supabase + Dexie (offline) + manifest.webmanifest + Tauri (APK/AAB opcional).
 

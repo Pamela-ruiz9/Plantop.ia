@@ -1,185 +1,70 @@
 # 🌿 Plantop.ia
 
-**Plantop.ia** is an intelligent plant care application that leverages technology to assist users in identifying, monitoring, and nurturing their plants. The app offers features like plant recognition, personalized care reminders, community engagement, and more.
+**Plantop.ia** es una app para llevar la bitácora real de cuidado de tus plantas: sustrato, luz, riego, fertilización y fase de vida (vegetativo, floración, fructificación, recesión/dormancia, latencia), con historial de eventos y cambios de fase.
 
-## 🚀 Features
+> Migrado en julio 2026 de Next.js + Firebase a **Astro (static) + Supabase**, siguiendo el mismo patrón que [Rastrum](https://rastrum.org). Ver `docs/plan-migracion-astro-supabase.md` para el plan completo y `docs/roadmap-dev.md` para el roadmap histórico (Next.js, archivado).
 
-* **Plant Identification**: Recognize plant species through images and access comprehensive information from a vast plant database.
-* **Personalized Inventory**: Maintain a catalog of your plants with detailed care requirements.
-* **Sensor Integration**: Monitor real-time data such as light, humidity, and temperature using integrated sensors.
-* **Smart Reminders**: Receive notifications for watering, fertilizing, and other plant care tasks.
-* **Customized Suggestions**: Get plant recommendations based on your location and environmental conditions.
-* **Disease Alerts**: Detect plant diseases early and receive guidance on treatment.
-* **User Dashboard**: Overview of your plant care activities and plant health status.
-* **Community Forum**: Engage with other plant enthusiasts, share tips, and showcase your plants.
-* **Weather Forecasting**: Adjust care routines based on upcoming weather conditions.
-* **Educational Content**: Access blogs and guides on plant care, propagation, and more.
-* **Gamification**: Participate in challenges and earn rewards for consistent plant care.
-* **Digital Twins**: Visual representations of your plants reflecting their real-time health and needs.
+## 🚀 Estado actual (julio 2026)
 
----
+**Rama activa:** `astro-supabase-migration` → PR [#1](https://github.com/Pamela-ruiz9/Plantop.ia/pull/1)
+
+### ✅ Funcionando y verificado
+- Auth con Supabase (email/password: login + signup)
+- Listado de plantas del usuario (con RLS — cada usuario ve solo las suyas)
+- Alta, edición y borrado de plantas (sustrato, luz, riego, fertilización, fase de vida)
+- Vista de detalle con historial: stats, bitácora de eventos (`plant_events`) y log de fases (`plant_phase_log`), solo lectura por ahora
+- PWA instalable (manifest, íconos, service worker)
+- Esquema Postgres completo aplicado en un proyecto Supabase real, con RLS policies activas
+
+### ⏳ Pendiente
+- Botón en la UI para cambiar de fase (la función ya existe en `src/lib/plants.ts`, falta exponerla)
+- Verificación de clics reales en navegador (solo se verificó build + endpoints HTTP 200 + CRUD contra Supabase por separado)
+- Signup real de punta a punta (bloqueado por rate-limit de Supabase durante pruebas)
+- Deploy público (GitHub Pages + Actions — en progreso)
+- Dominio propio (`plantopia.mx` está disponible pero aún no comprado)
 
 ## 🛠️ Tech Stack
 
-* **Framework**: [Next.js 15](https://nextjs.org/) with App Router
-* **Language**: [TypeScript](https://www.typescriptlang.org/)
-* **Backend Services**: [Firebase](https://firebase.google.com/)
+- **Framework:** [Astro](https://astro.build) (`output: static`)
+- **Backend:** [Supabase](https://supabase.com) — Postgres + Auth + RLS
+- **Estilos:** Tailwind CSS v4
+- **Offline cache:** Dexie (IndexedDB)
+- **PWA:** manifest.webmanifest + service worker instalable
 
-  * Authentication
-  * Firestore (Database)
-  * Cloud Storage
-  * Hosting
-* **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-* **Form Handling**: [React Hook Form](https://react-hook-form.com/)
-* **Validation**: [Zod](https://zod.dev/)
+El código vive en `plantopia/` — ver `plantopia/README.md` para instrucciones de desarrollo local.
 
----
-
-## 📁 Project Structure
+## 📁 Estructura
 
 ```
-plantopia/
-├── app/                # Next.js App Router directory
-│   ├── dashboard/      # User dashboard pages
-│   ├── inventory/      # Plant inventory pages
-│   ├── community/      # Community forum pages
-│   └── ...             # Other routes
-├── components/         # Reusable UI components
-├── lib/                # Firebase configuration and utilities
-├── public/             # Static assets
-├── styles/             # Global styles
-├── .env.local          # Environment variables
-├── firebase.json       # Firebase configuration
-├── next.config.js      # Next.js configuration
-└── tsconfig.json       # TypeScript configuration
+Plantop.ia/
+├── plantopia/           # App Astro + Supabase (código activo)
+│   ├── src/
+│   │   ├── pages/       # index, login, plants/{new,edit,detail}
+│   │   ├── lib/         # supabase.ts, plants.ts, session.ts, labels.ts
+│   │   ├── components/  # PlantForm.astro
+│   │   └── layouts/
+│   └── supabase/
+│       └── migrations/  # 0001_init.sql — esquema de la DB
+├── docs/
+│   ├── plan-migracion-astro-supabase.md
+│   └── roadmap-dev.md   # roadmap histórico (versión Next.js, archivado)
+└── SUPABASE_SETUP.md    # credenciales del proyecto Supabase (NO se sube al repo, ver .gitignore)
 ```
-
----
 
 ## 🗺️ Roadmap
 
-### ✅ MVP (Minimum Viable Product)
+Ver `docs/plan-migracion-astro-supabase.md` para el plan de migración detallado (infraestructura + features) y su estado de avance.
 
-* [ ] Set up Next.js 15 with TypeScript
-* [ ] Integrate Firebase Authentication with Google Sign-In
-* [ ] Implement Firestore for user and plant data storage
-* [ ] Develop user dashboard and plant inventory management
-* [ ] Enable image uploads to Cloud Storage
-* [ ] Create basic plant identification feature
+## 🔐 Seguridad
 
-### 🚧 Version 1.0
+- `SUPABASE_SETUP.md` (contiene la password de la base de datos) está en `.gitignore` — nunca se sube al repo.
+- `.env` / `.env.local` (URL + anon key) también están ignorados.
+- Usar `.env.example` como plantilla para configurar tu propio `.env` local.
 
-* [ ] Integrate real-time sensors for environmental monitoring
-* [ ] Implement weather forecasting using external APIs
-* [ ] Develop community forum with posting and commenting features
-* [ ] Introduce gamification elements (e.g., badges, challenges)
-* [ ] Create digital twins for visual plant representation
+## 🤝 Contribuir
 
-### 🔮 Future Enhancements
-
-* [ ] Support for multiple languages
-* [ ] Mobile application using React Native
-* [ ] Integration with smart home devices
-* [ ] Advanced analytics for plant care patterns
-
----
-
-## ⚡ Quickstart Guide
-
-### Prerequisites
-
-* **Node.js** (v18 or higher)
-* **Firebase CLI** installed globally (`npm install -g firebase-tools`)
-* **Git** installed
-
-### Steps
-
-1. **Clone the Repository**
-
-   ```bash
-   git clone https://github.com/yourusername/plantopia.git
-   cd plantopia
-   ```
-
-2. **Install Dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Set Up Firebase**
-
-   * Create a new project in the [Firebase Console](https://console.firebase.google.com/)
-   * Enable **Authentication** (Google Sign-In), **Firestore**, and **Cloud Storage**
-   * Obtain your Firebase configuration and add it to `.env.local`:
-
-     ```env
-     NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-     NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-     NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-     ```
-
-4. **Initialize Firebase in the Project**
-
-   * Create a `firebase.ts` file in the `lib/` directory:
-
-     ```typescript
-     // lib/firebase.ts
-     import { initializeApp } from 'firebase/app';
-     import { getAuth } from 'firebase/auth';
-     import { getFirestore } from 'firebase/firestore';
-     import { getStorage } from 'firebase/storage';
-
-     const firebaseConfig = {
-       apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-       authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-       storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-       messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-       appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-     };
-
-     const app = initializeApp(firebaseConfig);
-
-     const auth = getAuth(app);
-     const db = getFirestore(app);
-     const storage = getStorage(app);
-
-     export { auth, db, storage };
-     ```
-
-5. **Run the Development Server**
-
-   ```bash
-   npm run dev
-   ```
-
-   Open [http://localhost:3000](http://localhost:3000) to view the application.
-
----
-
-## 📚 Resources
-
-* [Firebase Integration with Next.js](https://firebase.google.com/codelabs/firebase-nextjs)
-* [Next.js Documentation](https://nextjs.org/docs)
-* [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-* [React Hook Form Documentation](https://react-hook-form.com/get-started)
-* [Zod Documentation](https://zod.dev/)
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a new branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m 'Add your feature'`
-4. Push to the branch: `git push origin feature/your-feature`
-5. Open a pull request
-
----
-
+1. Fork del repo
+2. Crea una rama: `git checkout -b feature/tu-feature`
+3. Commit: `git commit -m 'feat: tu cambio'`
+4. Push: `git push origin feature/tu-feature`
+5. Abre un Pull Request
