@@ -33,6 +33,24 @@ import '../../styles/global.css';
         <p id="plant-notes" class="text-sm text-slate-400"></p>
       </section>
 
+      <section class="mb-8 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-3 text-sm font-medium text-slate-300">Cambiar de fase</h2>
+        <form id="phase-form" class="flex flex-wrap gap-2">
+          <select id="new_phase" name="new_phase" class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm">
+            <option value="vegetative">Vegetativa</option>
+            <option value="flowering">Floración</option>
+            <option value="fruiting">Fructificación</option>
+            <option value="dormancy">Dormancia</option>
+            <option value="latent">Latente</option>
+          </select>
+          <input id="phase_note" name="note" type="text" placeholder="Nota (opcional)" class="min-w-[10rem] flex-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm" />
+          <button type="submit" class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500">
+            Cambiar fase
+          </button>
+        </form>
+        <p id="phase-message" class="hidden mt-3 rounded-md px-3 py-2 text-sm"></p>
+      </section>
+
       <section class="mb-8">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="text-lg font-medium">Bitácora de eventos</h2>
@@ -76,6 +94,7 @@ import '../../styles/global.css';
       addPlantEvent,
       deletePlantEvent,
       listPhaseLog,
+      changePlantPhase,
     } from '../../lib/plants';
     import {
       HEALTH_LABELS,
@@ -86,6 +105,7 @@ import '../../styles/global.css';
       EVENT_LABELS,
     } from '../../lib/labels';
     import type { Plant, EventType } from '../../types/database';
+    import type { GrowthPhase } from '../../types/database';
 
     const loadingEl = document.getElementById('loading')!;
     const errorEl = document.getElementById('error')!;
@@ -126,6 +146,7 @@ import '../../styles/global.css';
         (document.getElementById('event_date') as HTMLInputElement).value = new Date()
           .toISOString()
           .slice(0, 10);
+        (document.getElementById('new_phase') as HTMLSelectElement).value = plant.current_phase;
 
         document.getElementById('delete-btn')!.addEventListener('click', async () => {
           if (!confirm(`¿Borrar "${plant.common_name}"? Esta acción no se puede deshacer.`)) return;
@@ -139,6 +160,44 @@ import '../../styles/global.css';
 
         await loadEvents(plant, id);
         await loadPhaseLog(id);
+
+        document.getElementById('phase-form')!.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const form = e.target as HTMLFormElement;
+          const fd = new FormData(form);
+          const newPhase = String(fd.get('new_phase')) as GrowthPhase;
+          const note = String(fd.get('note') || '').trim() || undefined;
+          const messageEl = document.getElementById('phase-message')!;
+          const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+          if (newPhase === plant.current_phase) {
+            messageEl.textContent = 'La planta ya está en esa fase.';
+            messageEl.className =
+              'mt-3 rounded-md px-3 py-2 text-sm bg-amber-950 text-amber-300 border border-amber-900';
+            return;
+          }
+
+          submitBtn.disabled = true;
+          try {
+            await changePlantPhase(plant, newPhase, note);
+            plant.current_phase = newPhase;
+            plant.current_phase_started_at = new Date().toISOString().slice(0, 10);
+            renderPlant(plant);
+            (form.elements.namedItem('note') as HTMLInputElement).value = '';
+            messageEl.textContent = 'Fase actualizada.';
+            messageEl.className =
+              'mt-3 rounded-md px-3 py-2 text-sm bg-green-950 text-green-300 border border-green-900';
+            await loadPhaseLog(id);
+            await loadEvents(plant, id);
+          } catch (err) {
+            messageEl.textContent =
+              err instanceof Error ? `Error: ${err.message}` : 'Error al cambiar de fase.';
+            messageEl.className =
+              'mt-3 rounded-md px-3 py-2 text-sm bg-red-950 text-red-300 border border-red-900';
+          } finally {
+            submitBtn.disabled = false;
+          }
+        });
 
         document.getElementById('event-form')!.addEventListener('submit', async (e) => {
           e.preventDefault();
