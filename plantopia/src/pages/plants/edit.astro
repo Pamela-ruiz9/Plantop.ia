@@ -6,7 +6,7 @@ import '../../styles/global.css';
 
 <Layout title="Plantopia — Editar planta">
   <main class="mx-auto min-h-screen max-w-lg px-4 py-8">
-    <a href="/" id="back-link" class="mb-4 inline-block text-sm text-slate-400 hover:text-slate-200">← Volver</a>
+    <a href={import.meta.env.BASE_URL} id="back-link" class="mb-4 inline-block text-sm text-slate-400 hover:text-slate-200">← Volver</a>
     <h1 class="mb-6 text-xl font-semibold">Editar planta</h1>
     <div id="loading" class="text-sm text-slate-500">Cargando…</div>
     <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
@@ -44,7 +44,7 @@ import '../../styles/global.css';
         errorEl.textContent = 'Falta el id de la planta.';
         return;
       }
-      backLink.href = `/plants/detail?id=${id}`;
+      backLink.href = `${import.meta.env.BASE_URL}plants/detail?id=${id}`;
 
       try {
         const plant = await getPlant(id);
@@ -72,7 +72,7 @@ import '../../styles/global.css';
               return;
             }
             await updatePlant(id, patch);
-            window.location.href = `/plants/detail?id=${id}`;
+            window.location.href = `${import.meta.env.BASE_URL}plants/detail?id=${id}`;
           } catch (err) {
             showError(err instanceof Error ? `Error al guardar: ${err.message}` : 'Error al guardar.');
             submitBtn.disabled = false;

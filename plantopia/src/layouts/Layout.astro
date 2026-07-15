@@ -20,22 +20,22 @@ const {
     <title>{title}</title>
 
     <!-- PWA / instalación en pantalla de inicio -->
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="manifest" href={`${import.meta.env.BASE_URL}manifest.webmanifest`} />
     <meta name="theme-color" content="#16a34a" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Plantopia" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}icons/icon-192.png`} />
 
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+    <link rel="icon" href={`${import.meta.env.BASE_URL}favicon.ico`} />
 
-    <script>
+    <script define:vars={{ base: import.meta.env.BASE_URL }}>
       // Registro del service worker (offline shell + instalación PWA)
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((err) => {
+          navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch((err) => {
             console.error('SW registration failed:', err);
           });
         });

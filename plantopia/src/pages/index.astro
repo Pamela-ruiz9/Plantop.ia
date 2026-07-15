@@ -25,7 +25,7 @@ import '../styles/global.css';
     <div class="mb-6 flex items-center justify-between">
       <h2 class="text-lg font-medium">Mis plantas</h2>
       <a
-        href="/plants/new"
+        href={`${import.meta.env.BASE_URL}plants/new`}
         class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-500"
       >
         + Agregar planta
@@ -37,7 +37,7 @@ import '../styles/global.css';
     <div id="empty" class="hidden flex-col items-center gap-3 py-16 text-center">
       <span class="text-4xl">🪴</span>
       <p class="text-slate-400">Todavía no tienes plantas registradas.</p>
-      <a href="/plants/new" class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white">
+      <a href={`${import.meta.env.BASE_URL}plants/new`} class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white">
         Agregar tu primera planta
       </a>
     </div>
@@ -64,8 +64,9 @@ import '../styles/global.css';
       const healthColor = HEALTH_COLORS[health];
       const healthLabel = HEALTH_LABELS[health];
       const location = plant.location ? LOCATION_LABELS[plant.location] : '—';
+      const base = import.meta.env.BASE_URL;
       return `
-        <a href="/plants/detail?id=${plant.id}" class="block rounded-xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-600">
+        <a href="${base}plants/detail?id=${plant.id}" class="block rounded-xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-600">
           <div class="flex items-start justify-between gap-2">
             <div>
               <h3 class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</h3>

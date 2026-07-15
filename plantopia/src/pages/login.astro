@@ -75,7 +75,8 @@ import '../styles/global.css';
     import { supabase } from '../lib/supabase';
     import { redirectIfAuthed } from '../lib/session';
 
-    redirectIfAuthed('/');
+    const base = import.meta.env.BASE_URL;
+    redirectIfAuthed(base);
 
     const tabLogin = document.getElementById('tab-login') as HTMLButtonElement;
     const tabSignup = document.getElementById('tab-signup') as HTMLButtonElement;
@@ -123,7 +124,7 @@ import '../styles/global.css';
         if (mode === 'login') {
           const { error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
-          window.location.href = '/';
+          window.location.href = base;
         } else {
           const { error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;

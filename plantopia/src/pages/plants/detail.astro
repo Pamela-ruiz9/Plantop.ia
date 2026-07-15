@@ -5,7 +5,7 @@ import '../../styles/global.css';
 
 <Layout title="Plantopia — Detalle">
   <main class="mx-auto min-h-screen max-w-2xl px-4 py-8">
-    <a href="/" class="mb-4 inline-block text-sm text-slate-400 hover:text-slate-200">← Volver</a>
+    <a href={import.meta.env.BASE_URL} class="mb-4 inline-block text-sm text-slate-400 hover:text-slate-200">← Volver</a>
 
     <div id="loading" class="py-12 text-center text-sm text-slate-500">Cargando…</div>
     <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
@@ -142,7 +142,7 @@ import '../../styles/global.css';
         loadingEl.classList.add('hidden');
         contentEl.classList.remove('hidden');
 
-        (document.getElementById('edit-link') as HTMLAnchorElement).href = `/plants/edit?id=${id}`;
+        (document.getElementById('edit-link') as HTMLAnchorElement).href = `${import.meta.env.BASE_URL}plants/edit?id=${id}`;
         (document.getElementById('event_date') as HTMLInputElement).value = new Date()
           .toISOString()
           .slice(0, 10);
@@ -152,7 +152,7 @@ import '../../styles/global.css';
           if (!confirm(`¿Borrar "${plant.common_name}"? Esta acción no se puede deshacer.`)) return;
           try {
             await deletePlant(id);
-            window.location.href = '/';
+            window.location.href = import.meta.env.BASE_URL;
           } catch (err) {
             alert(err instanceof Error ? err.message : 'Error al borrar la planta.');
           }

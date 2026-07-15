@@ -6,7 +6,8 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://plantopia.mx',
+  site: 'https://pamela-ruiz9.github.io',
+  base: '/Plantop.ia/',
   output: 'static',
   vite: {
     plugins: [tailwindcss()]

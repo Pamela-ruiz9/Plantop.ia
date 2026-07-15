@@ -1,12 +1,22 @@
-// Plantopia — service worker básico (offline-first shell)
+// Service worker generado dinámicamente para que las rutas respeten el `base`
+// configurado en astro.config.mjs. Astro inyecta BASE_URL en build time.
+import type { APIRoute } from 'astro';
+
+export const prerender = true;
+
+export const GET: APIRoute = () => {
+  const base = import.meta.env.BASE_URL;
+
+  const body = `// Plantopia — service worker básico (offline-first shell)
 // Estrategia: cache-first para assets estáticos, network-first para navegación.
 
 const CACHE_NAME = 'plantopia-shell-v1';
+const BASE = ${JSON.stringify(base)};
 const SHELL_ASSETS = [
-  '/',
-  '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  BASE,
+  BASE + 'manifest.webmanifest',
+  BASE + 'icons/icon-192.png',
+  BASE + 'icons/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -40,7 +50,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
-        .catch(() => caches.match(request).then((res) => res || caches.match('/')))
+        .catch(() => caches.match(request).then((res) => res || caches.match(BASE)))
     );
     return;
   }
@@ -57,3 +67,9 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+`;
+
+  return new Response(body, {
+    headers: { 'Content-Type': 'application/javascript' },
+  });
+};
