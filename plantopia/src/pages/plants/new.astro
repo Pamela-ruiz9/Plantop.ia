@@ -1,0 +1,55 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PlantForm from '../../components/PlantForm.astro';
+import '../../styles/global.css';
+---
+
+<Layout title="Plantopia — Nueva planta">
+  <main class="mx-auto min-h-screen max-w-lg px-4 py-8">
+    <a href="/" class="mb-4 inline-block text-sm text-slate-400 hover:text-slate-200">← Volver</a>
+    <h1 class="mb-6 text-xl font-semibold">Agregar planta</h1>
+    <PlantForm />
+  </main>
+
+  <script>
+    import { requireAuth } from '../../lib/session';
+    import { createPlant } from '../../lib/plants';
+    import { readPlantForm } from '../../lib/plant-form';
+
+    const form = document.getElementById('plant-form') as HTMLFormElement;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    const messageEl = document.getElementById('form-message') as HTMLParagraphElement;
+
+    function showError(text: string) {
+      messageEl.textContent = text;
+      messageEl.className = 'rounded-md px-3 py-2 text-sm bg-red-950 text-red-300 border border-red-900';
+    }
+
+    async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        messageEl.className = 'hidden';
+
+        try {
+          const plant = readPlantForm(form);
+          if (!plant.common_name) {
+            showError('El nombre común es obligatorio.');
+            submitBtn.disabled = false;
+            return;
+          }
+          const created = await createPlant(user.id, plant);
+          window.location.href = `/plants/detail?id=${created.id}`;
+        } catch (err) {
+          showError(err instanceof Error ? `Error al guardar: ${err.message}` : 'Error al guardar.');
+          submitBtn.disabled = false;
+        }
+      });
+    }
+
+    init();
+  </script>
+</Layout>

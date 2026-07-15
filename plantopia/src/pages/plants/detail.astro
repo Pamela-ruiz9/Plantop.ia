@@ -1,0 +1,269 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import '../../styles/global.css';
+---
+
+<Layout title="Plantopia — Detalle">
+  <main class="mx-auto min-h-screen max-w-2xl px-4 py-8">
+    <a href="/" class="mb-4 inline-block text-sm text-slate-400 hover:text-slate-200">← Volver</a>
+
+    <div id="loading" class="py-12 text-center text-sm text-slate-500">Cargando…</div>
+    <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
+
+    <div id="content" class="hidden">
+      <div class="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 id="plant-name" class="text-2xl font-semibold"></h1>
+          <p id="plant-species" class="text-sm text-slate-500"></p>
+        </div>
+        <div class="flex gap-2">
+          <a id="edit-link" href="#" class="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white">
+            Editar
+          </a>
+          <button id="delete-btn" type="button" class="rounded-md border border-red-900 px-3 py-1.5 text-sm text-red-300 transition hover:bg-red-950">
+            Borrar
+          </button>
+        </div>
+      </div>
+
+      <section class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3" id="stats-grid"></section>
+
+      <section class="mb-8 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-3 text-sm font-medium text-slate-300">Notas</h2>
+        <p id="plant-notes" class="text-sm text-slate-400"></p>
+      </section>
+
+      <section class="mb-8">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-lg font-medium">Bitácora de eventos</h2>
+        </div>
+        <form id="event-form" class="mb-4 flex flex-wrap gap-2 rounded-xl border border-slate-800 bg-slate-900 p-3">
+          <select id="event_type" name="event_type" class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm">
+            <option value="watered">Riego</option>
+            <option value="fertilized">Fertilización</option>
+            <option value="repotted">Trasplante</option>
+            <option value="pruned">Poda</option>
+            <option value="pest_detected">Plaga detectada</option>
+            <option value="pest_treated">Plaga tratada</option>
+            <option value="photo_added">Foto agregada</option>
+            <option value="note">Nota</option>
+          </select>
+          <input id="event_date" name="event_date" type="date" required class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm" />
+          <input id="event_note" name="note" type="text" placeholder="Nota (opcional)" class="min-w-[10rem] flex-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm" />
+          <button type="submit" class="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-500">
+            Agregar
+          </button>
+        </form>
+        <p id="event-message" class="hidden mb-3 rounded-md px-3 py-2 text-sm"></p>
+        <ul id="event-list" class="flex flex-col gap-2"></ul>
+        <p id="event-empty" class="hidden text-sm text-slate-500">Sin eventos registrados todavía.</p>
+      </section>
+
+      <section>
+        <h2 class="mb-3 text-lg font-medium">Historial de fases</h2>
+        <ul id="phase-list" class="flex flex-col gap-2"></ul>
+        <p id="phase-empty" class="hidden text-sm text-slate-500">Sin historial de fases todavía.</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    import { requireAuth } from '../../lib/session';
+    import {
+      getPlant,
+      deletePlant,
+      listPlantEvents,
+      addPlantEvent,
+      deletePlantEvent,
+      listPhaseLog,
+    } from '../../lib/plants';
+    import {
+      HEALTH_LABELS,
+      HEALTH_COLORS,
+      LOCATION_LABELS,
+      LIGHT_LABELS,
+      PHASE_LABELS,
+      EVENT_LABELS,
+    } from '../../lib/labels';
+    import type { Plant, EventType } from '../../types/database';
+
+    const loadingEl = document.getElementById('loading')!;
+    const errorEl = document.getElementById('error')!;
+    const contentEl = document.getElementById('content')!;
+
+    function escapeHtml(str: string): string {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const id = new URLSearchParams(window.location.search).get('id');
+      if (!id) {
+        loadingEl.classList.add('hidden');
+        errorEl.classList.remove('hidden');
+        errorEl.textContent = 'Falta el id de la planta.';
+        return;
+      }
+
+      try {
+        const plant = await getPlant(id);
+        if (!plant) {
+          loadingEl.classList.add('hidden');
+          errorEl.classList.remove('hidden');
+          errorEl.textContent = 'No se encontró la planta (o no te pertenece).';
+          return;
+        }
+
+        renderPlant(plant);
+        loadingEl.classList.add('hidden');
+        contentEl.classList.remove('hidden');
+
+        (document.getElementById('edit-link') as HTMLAnchorElement).href = `/plants/edit?id=${id}`;
+        (document.getElementById('event_date') as HTMLInputElement).value = new Date()
+          .toISOString()
+          .slice(0, 10);
+
+        document.getElementById('delete-btn')!.addEventListener('click', async () => {
+          if (!confirm(`¿Borrar "${plant.common_name}"? Esta acción no se puede deshacer.`)) return;
+          try {
+            await deletePlant(id);
+            window.location.href = '/';
+          } catch (err) {
+            alert(err instanceof Error ? err.message : 'Error al borrar la planta.');
+          }
+        });
+
+        await loadEvents(plant, id);
+        await loadPhaseLog(id);
+
+        document.getElementById('event-form')!.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const form = e.target as HTMLFormElement;
+          const fd = new FormData(form);
+          const messageEl = document.getElementById('event-message')!;
+          try {
+            await addPlantEvent(plant, {
+              event_type: String(fd.get('event_type')) as EventType,
+              event_date: String(fd.get('event_date')),
+              note: String(fd.get('note') || '').trim() || null,
+            });
+            (form.elements.namedItem('note') as HTMLInputElement).value = '';
+            messageEl.className = 'hidden';
+            await loadEvents(plant, id);
+          } catch (err) {
+            messageEl.textContent =
+              err instanceof Error ? `Error: ${err.message}` : 'Error al agregar evento.';
+            messageEl.className =
+              'mb-3 rounded-md px-3 py-2 text-sm bg-red-950 text-red-300 border border-red-900';
+          }
+        });
+      } catch (err) {
+        loadingEl.classList.add('hidden');
+        errorEl.classList.remove('hidden');
+        errorEl.textContent =
+          err instanceof Error ? `Error al cargar: ${err.message}` : 'Error al cargar la planta.';
+      }
+    }
+
+    function renderPlant(plant: Plant) {
+      document.getElementById('plant-name')!.textContent = plant.common_name;
+      document.getElementById('plant-species')!.textContent = plant.species ?? '';
+      document.getElementById('plant-notes')!.textContent = plant.notes || 'Sin notas.';
+
+      const health = plant.health_status ?? 'healthy';
+      const stats = [
+        { label: 'Salud', value: HEALTH_LABELS[health], extra: HEALTH_COLORS[health] },
+        { label: 'Fase', value: PHASE_LABELS[plant.current_phase] },
+        { label: 'Ubicación', value: plant.location ? LOCATION_LABELS[plant.location] : '—' },
+        { label: 'Luz', value: plant.light_type ? LIGHT_LABELS[plant.light_type] : '—' },
+        { label: 'Riego cada', value: plant.watering_frequency_days ? `${plant.watering_frequency_days} días` : '—' },
+        { label: 'Último riego', value: plant.last_watered ?? '—' },
+        { label: 'Fertilizar cada', value: plant.fertilizing_frequency_days ? `${plant.fertilizing_frequency_days} días` : '—' },
+        { label: 'Última fert.', value: plant.last_fertilized ?? '—' },
+        { label: 'Sustrato', value: plant.substrate_mix ?? '—' },
+      ];
+
+      document.getElementById('stats-grid')!.innerHTML = stats
+        .map(
+          (s) => `
+        <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+          <p class="text-xs text-slate-500">${s.label}</p>
+          <p class="mt-1 text-sm font-medium text-slate-200">${escapeHtml(String(s.value))}</p>
+        </div>
+      `
+        )
+        .join('');
+    }
+
+    async function loadEvents(plant: Plant, plantId: string) {
+      const events = await listPlantEvents(plantId);
+      const listEl = document.getElementById('event-list')!;
+      const emptyEl = document.getElementById('event-empty')!;
+
+      if (events.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+
+      listEl.innerHTML = events
+        .map(
+          (ev) => `
+        <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
+          <div>
+            <span class="font-medium text-slate-200">${EVENT_LABELS[ev.event_type]}</span>
+            <span class="ml-2 text-slate-500">${ev.event_date}</span>
+            ${ev.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(ev.note)}</p>` : ''}
+          </div>
+          <button data-event-id="${ev.id}" class="delete-event shrink-0 text-xs text-red-400 hover:text-red-300">Borrar</button>
+        </li>
+      `
+        )
+        .join('');
+
+      listEl.querySelectorAll<HTMLButtonElement>('.delete-event').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const eventId = btn.dataset.eventId!;
+          try {
+            await deletePlantEvent(eventId);
+            await loadEvents(plant, plantId);
+          } catch (err) {
+            alert(err instanceof Error ? err.message : 'Error al borrar evento.');
+          }
+        });
+      });
+    }
+
+    async function loadPhaseLog(plantId: string) {
+      const logs = await listPhaseLog(plantId);
+      const listEl = document.getElementById('phase-list')!;
+      const emptyEl = document.getElementById('phase-empty')!;
+
+      if (logs.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+
+      listEl.innerHTML = logs
+        .map(
+          (log) => `
+        <li class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
+          <span class="font-medium text-slate-200">${PHASE_LABELS[log.phase]}</span>
+          <span class="ml-2 text-slate-500">${log.started_at} → ${log.ended_at ?? 'en curso'}</span>
+          ${log.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(log.note)}</p>` : ''}
+        </li>
+      `
+        )
+        .join('');
+    }
+
+    init();
+  </script>
+</Layout>

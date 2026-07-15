@@ -1,0 +1,91 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PlantForm from '../../components/PlantForm.astro';
+import '../../styles/global.css';
+---
+
+<Layout title="Plantopia — Editar planta">
+  <main class="mx-auto min-h-screen max-w-lg px-4 py-8">
+    <a href="/" id="back-link" class="mb-4 inline-block text-sm text-slate-400 hover:text-slate-200">← Volver</a>
+    <h1 class="mb-6 text-xl font-semibold">Editar planta</h1>
+    <div id="loading" class="text-sm text-slate-500">Cargando…</div>
+    <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
+    <div id="form-wrapper" class="hidden">
+      <PlantForm />
+    </div>
+  </main>
+
+  <script>
+    import { requireAuth } from '../../lib/session';
+    import { getPlant, updatePlant } from '../../lib/plants';
+    import { readPlantForm, fillPlantForm } from '../../lib/plant-form';
+
+    const loadingEl = document.getElementById('loading')!;
+    const errorEl = document.getElementById('error')!;
+    const wrapperEl = document.getElementById('form-wrapper')!;
+    const backLink = document.getElementById('back-link') as HTMLAnchorElement;
+    const form = document.getElementById('plant-form') as HTMLFormElement;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    const messageEl = document.getElementById('form-message') as HTMLParagraphElement;
+
+    function showError(text: string) {
+      messageEl.textContent = text;
+      messageEl.className = 'rounded-md px-3 py-2 text-sm bg-red-950 text-red-300 border border-red-900';
+    }
+
+    async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const id = new URLSearchParams(window.location.search).get('id');
+      if (!id) {
+        loadingEl.classList.add('hidden');
+        errorEl.classList.remove('hidden');
+        errorEl.textContent = 'Falta el id de la planta.';
+        return;
+      }
+      backLink.href = `/plants/detail?id=${id}`;
+
+      try {
+        const plant = await getPlant(id);
+        if (!plant) {
+          loadingEl.classList.add('hidden');
+          errorEl.classList.remove('hidden');
+          errorEl.textContent = 'No se encontró la planta.';
+          return;
+        }
+
+        fillPlantForm(form, plant);
+        loadingEl.classList.add('hidden');
+        wrapperEl.classList.remove('hidden');
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          submitBtn.disabled = true;
+          messageEl.className = 'hidden';
+
+          try {
+            const patch = readPlantForm(form);
+            if (!patch.common_name) {
+              showError('El nombre común es obligatorio.');
+              submitBtn.disabled = false;
+              return;
+            }
+            await updatePlant(id, patch);
+            window.location.href = `/plants/detail?id=${id}`;
+          } catch (err) {
+            showError(err instanceof Error ? `Error al guardar: ${err.message}` : 'Error al guardar.');
+            submitBtn.disabled = false;
+          }
+        });
+      } catch (err) {
+        loadingEl.classList.add('hidden');
+        errorEl.classList.remove('hidden');
+        errorEl.textContent =
+          err instanceof Error ? `Error al cargar: ${err.message}` : 'Error al cargar la planta.';
+      }
+    }
+
+    init();
+  </script>
+</Layout>
