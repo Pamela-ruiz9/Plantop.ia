@@ -17,7 +17,6 @@
 - Esquema Postgres completo aplicado en un proyecto Supabase real, con RLS policies activas
 
 ### ⏳ Pendiente
-- Botón en la UI para cambiar de fase (la función ya existe en `src/lib/plants.ts`, falta exponerla)
 - Verificación de clics reales en navegador (solo se verificó build + endpoints HTTP 200 + CRUD contra Supabase por separado)
 - Signup real de punta a punta (bloqueado por rate-limit de Supabase durante pruebas)
 - Deploy público (GitHub Pages + Actions — en progreso)

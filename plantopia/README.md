@@ -79,7 +79,6 @@ Todas con RLS activo — cada usuario solo puede ver/modificar sus propias plant
 
 ## Pendientes conocidos
 
-- Botón de "cambiar de fase" en la UI (función ya existe en `lib/plants.ts`, falta exponerla)
 - Signup real de punta a punta sin rate-limit (pendiente de probar en producción)
 - Deploy: GitHub Pages + Actions (en progreso, ver PR #1 del repo)
 
