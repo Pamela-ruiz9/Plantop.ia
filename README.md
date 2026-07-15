@@ -10,7 +10,7 @@
 
 ### ✅ Funcionando y verificado
 - Auth con Supabase (email/password: login + signup)
-- **Login con Google (OAuth)** — provider activado en Supabase, flujo verificado contra producción hasta la redirección a Google (falta confirmar el ciclo completo con clic real)
+- **Login con Google (OAuth)** — verificado con clic real: Pame entró exitosamente en producción (15 julio 2026)
 - Listado de plantas del usuario (con RLS — cada usuario ve solo las suyas)
 - Alta, edición y borrado de plantas (sustrato, luz, riego, fertilización, fase de vida)
 - Vista de detalle con historial: stats, bitácora de eventos (`plant_events`) y log de fases (`plant_phase_log`), solo lectura por ahora
@@ -18,8 +18,7 @@
 - Esquema Postgres completo aplicado en un proyecto Supabase real, con RLS policies activas
 
 ### ⏳ Pendiente
-- Confirmar el ciclo completo de login con Google con un clic real (el flujo OAuth ya redirige correctamente a producción, falta el paso humano de autorizar y volver)
-- Verificación de clics reales en navegador para el resto del CRUD
+- Verificación de clics reales en navegador para el resto del CRUD (login con Google ya confirmado)
 - **Signup real de punta a punta sin probar.** El proyecto de Supabase no tiene SMTP propio configurado, así que usa el mailer integrado de Supabase con límite de **2 correos/hora** — las pruebas de registro se topan con ese límite rápido. Para producción real hay que configurar un proveedor SMTP (Resend, Postmark, etc.) en el dashboard de Supabase (Auth → SMTP Settings) o confirmar usuarios manualmente mientras se prueba.
 - Deploy público (GitHub Pages + Actions — ver estado abajo)
 - Dominio propio (`plantopia.mx` está disponible pero aún no comprado)
