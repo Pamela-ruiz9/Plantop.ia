@@ -1,0 +1,141 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/global.css';
+---
+
+<Layout title="Plantopia — Entrar">
+  <main class="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
+    <div class="w-full max-w-sm">
+      <div class="mb-8 text-center">
+        <span class="text-4xl">🌿</span>
+        <h1 class="mt-2 text-2xl font-semibold">Plantopia</h1>
+        <p class="mt-1 text-sm text-slate-400">Tu colección de plantas</p>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-900 p-6">
+        <div class="mb-4 flex gap-2 rounded-lg bg-slate-800 p-1 text-sm">
+          <button
+            id="tab-login"
+            type="button"
+            class="flex-1 rounded-md py-1.5 font-medium transition bg-green-600 text-white"
+          >
+            Entrar
+          </button>
+          <button
+            id="tab-signup"
+            type="button"
+            class="flex-1 rounded-md py-1.5 font-medium text-slate-300 transition"
+          >
+            Crear cuenta
+          </button>
+        </div>
+
+        <form id="auth-form" class="flex flex-col gap-3">
+          <div>
+            <label for="email" class="mb-1 block text-xs text-slate-400">Correo</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autocomplete="email"
+              class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+              placeholder="tu@correo.com"
+            />
+          </div>
+          <div>
+            <label for="password" class="mb-1 block text-xs text-slate-400">Contraseña</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minlength="6"
+              autocomplete="current-password"
+              class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <p id="auth-message" class="hidden rounded-md px-3 py-2 text-sm"></p>
+
+          <button
+            id="submit-btn"
+            type="submit"
+            class="mt-2 rounded-md bg-green-600 py-2 text-sm font-medium text-white transition hover:bg-green-500 disabled:opacity-50"
+          >
+            Entrar
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    import { supabase } from '../lib/supabase';
+    import { redirectIfAuthed } from '../lib/session';
+
+    const base = import.meta.env.BASE_URL;
+    redirectIfAuthed(base);
+
+    const tabLogin = document.getElementById('tab-login') as HTMLButtonElement;
+    const tabSignup = document.getElementById('tab-signup') as HTMLButtonElement;
+    const form = document.getElementById('auth-form') as HTMLFormElement;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    const messageEl = document.getElementById('auth-message') as HTMLParagraphElement;
+
+    let mode: 'login' | 'signup' = 'login';
+
+    function setMode(next: 'login' | 'signup') {
+      mode = next;
+      const active = 'flex-1 rounded-md py-1.5 font-medium transition bg-green-600 text-white';
+      const inactive = 'flex-1 rounded-md py-1.5 font-medium text-slate-300 transition';
+      tabLogin.className = mode === 'login' ? active : inactive;
+      tabSignup.className = mode === 'signup' ? active : inactive;
+      submitBtn.textContent = mode === 'login' ? 'Entrar' : 'Crear cuenta';
+      hideMessage();
+    }
+
+    function showMessage(text: string, kind: 'error' | 'success') {
+      messageEl.textContent = text;
+      messageEl.className =
+        kind === 'error'
+          ? 'rounded-md px-3 py-2 text-sm bg-red-950 text-red-300 border border-red-900'
+          : 'rounded-md px-3 py-2 text-sm bg-green-950 text-green-300 border border-green-900';
+    }
+
+    function hideMessage() {
+      messageEl.className = 'hidden';
+    }
+
+    tabLogin.addEventListener('click', () => setMode('login'));
+    tabSignup.addEventListener('click', () => setMode('signup'));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideMessage();
+      submitBtn.disabled = true;
+
+      const formData = new FormData(form);
+      const email = String(formData.get('email') || '').trim();
+      const password = String(formData.get('password') || '');
+
+      try {
+        if (mode === 'login') {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          window.location.href = base;
+        } else {
+          const { error } = await supabase.auth.signUp({ email, password });
+          if (error) throw error;
+          showMessage('Cuenta creada. Si tu proyecto requiere confirmación por correo, revisa tu bandeja. Si no, ya puedes entrar.', 'success');
+          setMode('login');
+        }
+      } catch (err) {
+        showMessage(err instanceof Error ? err.message : 'Ocurrió un error inesperado.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</Layout>

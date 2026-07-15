@@ -1,0 +1,243 @@
+---
+// Formulario reutilizable para crear/editar una planta.
+// El comportamiento de submit (crear vs actualizar) lo maneja el script de la página que lo usa,
+// este componente solo pinta los campos del esquema.
+import {
+  LOCATIONS,
+  HEALTH_STATUSES,
+  LIGHT_TYPES,
+  GROWTH_PHASES,
+  LOCATION_LABELS,
+  HEALTH_LABELS,
+  LIGHT_LABELS,
+  PHASE_LABELS,
+} from '../lib/labels';
+---
+
+<form id="plant-form" class="flex flex-col gap-5">
+  <fieldset class="flex flex-col gap-3">
+    <legend class="mb-1 text-sm font-medium text-slate-300">Datos básicos</legend>
+
+    <div>
+      <label for="common_name" class="mb-1 block text-xs text-slate-400">Nombre común *</label>
+      <input
+        id="common_name"
+        name="common_name"
+        type="text"
+        required
+        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        placeholder="ej. Monstera del pasillo"
+      />
+    </div>
+
+    <div>
+      <label for="species" class="mb-1 block text-xs text-slate-400">Especie</label>
+      <input
+        id="species"
+        name="species"
+        type="text"
+        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        placeholder="ej. Monstera deliciosa"
+      />
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label for="location" class="mb-1 block text-xs text-slate-400">Ubicación</label>
+        <select
+          id="location"
+          name="location"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        >
+          <option value="">—</option>
+          {LOCATIONS.map((loc) => <option value={loc}>{LOCATION_LABELS[loc]}</option>)}
+        </select>
+      </div>
+      <div>
+        <label for="health_status" class="mb-1 block text-xs text-slate-400">Salud</label>
+        <select
+          id="health_status"
+          name="health_status"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        >
+          {HEALTH_STATUSES.map((h) => <option value={h}>{HEALTH_LABELS[h]}</option>)}
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label for="notes" class="mb-1 block text-xs text-slate-400">Notas</label>
+      <textarea
+        id="notes"
+        name="notes"
+        rows="2"
+        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+      ></textarea>
+    </div>
+  </fieldset>
+
+  <fieldset class="flex flex-col gap-3">
+    <legend class="mb-1 text-sm font-medium text-slate-300">Sustrato</legend>
+    <div>
+      <label for="substrate_mix" class="mb-1 block text-xs text-slate-400">Mezcla</label>
+      <input
+        id="substrate_mix"
+        name="substrate_mix"
+        type="text"
+        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        placeholder="ej. turba + perlita + corteza de pino"
+      />
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label for="substrate_ph" class="mb-1 block text-xs text-slate-400">pH</label>
+        <input
+          id="substrate_ph"
+          name="substrate_ph"
+          type="number"
+          step="0.1"
+          min="0"
+          max="14"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+      <div>
+        <label for="substrate_last_changed" class="mb-1 block text-xs text-slate-400">Último cambio</label>
+        <input
+          id="substrate_last_changed"
+          name="substrate_last_changed"
+          type="date"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="flex flex-col gap-3">
+    <legend class="mb-1 text-sm font-medium text-slate-300">Luz</legend>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label for="light_type" class="mb-1 block text-xs text-slate-400">Tipo</label>
+        <select
+          id="light_type"
+          name="light_type"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        >
+          <option value="">—</option>
+          {LIGHT_TYPES.map((l) => <option value={l}>{LIGHT_LABELS[l]}</option>)}
+        </select>
+      </div>
+      <div>
+        <label for="light_hours_per_day" class="mb-1 block text-xs text-slate-400">Horas/día</label>
+        <input
+          id="light_hours_per_day"
+          name="light_hours_per_day"
+          type="number"
+          step="0.5"
+          min="0"
+          max="24"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+    </div>
+    <div>
+      <label for="light_placement" class="mb-1 block text-xs text-slate-400">Ubicación de luz</label>
+      <input
+        id="light_placement"
+        name="light_placement"
+        type="text"
+        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        placeholder="ej. ventana norte"
+      />
+    </div>
+  </fieldset>
+
+  <fieldset class="flex flex-col gap-3">
+    <legend class="mb-1 text-sm font-medium text-slate-300">Riego y fertilización</legend>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label for="watering_frequency_days" class="mb-1 block text-xs text-slate-400">Riego cada (días)</label>
+        <input
+          id="watering_frequency_days"
+          name="watering_frequency_days"
+          type="number"
+          min="0"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+      <div>
+        <label for="last_watered" class="mb-1 block text-xs text-slate-400">Último riego</label>
+        <input
+          id="last_watered"
+          name="last_watered"
+          type="date"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label for="fertilizing_frequency_days" class="mb-1 block text-xs text-slate-400">Fertilizar cada (días)</label>
+        <input
+          id="fertilizing_frequency_days"
+          name="fertilizing_frequency_days"
+          type="number"
+          min="0"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+      <div>
+        <label for="last_fertilized" class="mb-1 block text-xs text-slate-400">Última fertilización</label>
+        <input
+          id="last_fertilized"
+          name="last_fertilized"
+          type="date"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="flex flex-col gap-3">
+    <legend class="mb-1 text-sm font-medium text-slate-300">Fase de vida</legend>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label for="current_phase" class="mb-1 block text-xs text-slate-400">Fase actual</label>
+        <select
+          id="current_phase"
+          name="current_phase"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        >
+          {GROWTH_PHASES.map((p) => <option value={p}>{PHASE_LABELS[p]}</option>)}
+        </select>
+      </div>
+      <div>
+        <label for="current_phase_started_at" class="mb-1 block text-xs text-slate-400">Fase desde</label>
+        <input
+          id="current_phase_started_at"
+          name="current_phase_started_at"
+          type="date"
+          class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+    </div>
+  </fieldset>
+
+  <p id="form-message" class="hidden rounded-md px-3 py-2 text-sm"></p>
+
+  <div class="flex gap-3">
+    <button
+      id="submit-btn"
+      type="submit"
+      class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-500 disabled:opacity-50"
+    >
+      Guardar
+    </button>
+    <a
+      href={import.meta.env.BASE_URL}
+      class="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
+    >
+      Cancelar
+    </a>
+  </div>
+</form>

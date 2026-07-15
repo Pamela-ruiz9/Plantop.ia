@@ -1,5 +1,7 @@
 # 🛠️ Plantop.ia Detailed Development Roadmap
 
+> ⚠️ **Archivado (15 julio 2026):** este roadmap corresponde a la versión original en Next.js + Firebase. El proyecto migró a Astro + Supabase — ver `plan-migracion-astro-supabase.md` para el plan y estado actuales. Se conserva aquí como referencia histórica de las fases planeadas (varias ideas, como el modelo de datos ampliado, se retomaron en la nueva versión).
+
 ## 🔰 Phase 0: Project Setup
 
 **Goal**: Lay the foundation of the project with tooling and base framework.
