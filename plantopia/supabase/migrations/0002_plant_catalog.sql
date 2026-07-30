@@ -44,4 +44,18 @@ CREATE POLICY "Catálogo público para autenticados"
   ON plant_catalog FOR SELECT
   USING (auth.role() = 'authenticated');
 
+CREATE OR REPLACE FUNCTION update_plant_catalog_updated_at()
+  RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_plant_catalog_updated_at
+  BEFORE UPDATE ON plant_catalog
+  FOR EACH ROW EXECUTE FUNCTION update_plant_catalog_updated_at();
+
 ALTER TABLE plants ADD COLUMN species_id uuid REFERENCES plant_catalog(id);
+
+CREATE INDEX idx_plants_species_id ON plants(species_id);
