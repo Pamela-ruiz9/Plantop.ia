@@ -2,6 +2,11 @@
 // Cuando el proyecto Supabase exista, reemplazar con:
 //   npx supabase gen types typescript --project-id <ref> > src/types/database.ts
 
+// Convierte una interface a un object type para satisfacer Record<string,unknown>
+// en los generics del cliente Supabase (las interfaces nombradas no satisfacen ese constraint
+// en conditional types de TypeScript, pero los mapped types sí).
+type Spread<T> = { [K in keyof T]: T[K] };
+
 export type PlantLocation = 'indoor' | 'outdoor';
 export type HealthStatus = 'healthy' | 'needs_attention' | 'sick';
 export type LightType = 'direct' | 'bright_indirect' | 'low_indirect' | 'shade';
@@ -70,24 +75,31 @@ export interface PlantEvent {
   created_at: string;
 }
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       plants: {
-        Row: Plant;
-        Insert: Omit<Plant, 'id' | 'created_at' | 'updated_at'> & { id?: string };
-        Update: Partial<Omit<Plant, 'id' | 'user_id' | 'created_at' | 'updated_at'>>;
+        Row: Spread<Plant>;
+        Insert: Spread<Omit<Plant, 'id' | 'created_at' | 'updated_at'> & { id?: string }>;
+        Update: Spread<Partial<Omit<Plant, 'id' | 'user_id' | 'created_at' | 'updated_at'>>>;
+        Relationships: [];
       };
       plant_phase_log: {
-        Row: PlantPhaseLog;
-        Insert: Omit<PlantPhaseLog, 'id' | 'created_at'> & { id?: string };
-        Update: Partial<Omit<PlantPhaseLog, 'id' | 'plant_id' | 'user_id' | 'created_at'>>;
+        Row: Spread<PlantPhaseLog>;
+        Insert: Spread<Omit<PlantPhaseLog, 'id' | 'created_at'> & { id?: string }>;
+        Update: Spread<Partial<Omit<PlantPhaseLog, 'id' | 'plant_id' | 'user_id' | 'created_at'>>>;
+        Relationships: [];
       };
       plant_events: {
-        Row: PlantEvent;
-        Insert: Omit<PlantEvent, 'id' | 'created_at'> & { id?: string };
-        Update: Partial<Omit<PlantEvent, 'id' | 'plant_id' | 'user_id' | 'created_at'>>;
+        Row: Spread<PlantEvent>;
+        Insert: Spread<Omit<PlantEvent, 'id' | 'created_at'> & { id?: string }>;
+        Update: Spread<Partial<Omit<PlantEvent, 'id' | 'plant_id' | 'user_id' | 'created_at'>>>;
+        Relationships: [];
       };
     };
+    Views: {};
+    Functions: {};
+    Enums: {};
+    CompositeTypes: {};
   };
-}
+};
