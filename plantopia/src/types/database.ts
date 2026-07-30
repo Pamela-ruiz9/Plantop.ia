@@ -28,6 +28,7 @@ export interface Plant {
   common_name: string;
   species: string | null;
   photo_url: string | null;
+  species_id: string | null;
   location: PlantLocation | null;
   health_status: HealthStatus | null;
   notes: string | null;
@@ -94,6 +95,40 @@ export type Database = {
         Row: Spread<PlantEvent>;
         Insert: Spread<Omit<PlantEvent, 'id' | 'created_at'> & { id?: string }>;
         Update: Spread<Partial<Omit<PlantEvent, 'id' | 'plant_id' | 'user_id' | 'created_at'>>>;
+        Relationships: [];
+      };
+      plant_catalog: {
+        Row: Spread<{
+          id: string; common_name: string; popular_name: string | null;
+          scientific_name: string; plant_type: string; origin: string | null;
+          description: string | null; reference_photo_url: string | null;
+          light_type: string | null; light_hours_per_day: number | null;
+          humidity: string | null; watering_frequency_days: number | null;
+          substrate_mix: string | null; substrate_ph_min: number | null;
+          substrate_ph_max: number | null; fertilizing_frequency_days: number | null;
+          min_temperature_celsius: number | null; care_difficulty: string | null;
+          toxic_to_pets: boolean; toxic_to_children: boolean;
+          flowering_season: string | null; adult_size: string | null;
+          location: string | null; created_at: string; updated_at: string;
+        }>;
+        Insert: Spread<{
+          id?: string; common_name: string; popular_name?: string | null;
+          scientific_name: string; plant_type: string; origin?: string | null;
+          description?: string | null; reference_photo_url?: string | null;
+          light_type?: string | null; light_hours_per_day?: number | null;
+          humidity?: string | null; watering_frequency_days?: number | null;
+          substrate_mix?: string | null; substrate_ph_min?: number | null;
+          substrate_ph_max?: number | null; fertilizing_frequency_days?: number | null;
+          min_temperature_celsius?: number | null; care_difficulty?: string | null;
+          toxic_to_pets?: boolean; toxic_to_children?: boolean;
+          flowering_season?: string | null; adult_size?: string | null;
+          location?: string | null;
+        }>;
+        Update: Spread<Partial<{
+          common_name: string; popular_name: string | null;
+          scientific_name: string; plant_type: string; origin: string | null;
+          description: string | null; reference_photo_url: string | null;
+        }>>;
         Relationships: [];
       };
     };

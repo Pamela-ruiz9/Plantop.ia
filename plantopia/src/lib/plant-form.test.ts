@@ -75,6 +75,7 @@ describe('fillPlantForm + readPlantForm roundtrip', () => {
       common_name: 'Pothos',
       species: 'Epipremnum aureum',
       photo_url: null,
+      species_id: null,
       location: 'indoor',
       health_status: 'healthy',
       notes: 'Crece rápido',

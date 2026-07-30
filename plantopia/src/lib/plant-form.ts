@@ -20,6 +20,7 @@ export function readPlantForm(form: HTMLFormElement): PlantInsert {
     common_name: String(fd.get('common_name') ?? '').trim(),
     species: strOrNull(fd.get('species')),
     photo_url: null,
+    species_id: null,
     location: (strOrNull(fd.get('location')) as PlantLocation | null) ?? null,
     health_status: (strOrNull(fd.get('health_status')) as HealthStatus | null) ?? 'healthy',
     notes: strOrNull(fd.get('notes')),
