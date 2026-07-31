@@ -13,7 +13,7 @@ import '../../styles/global.css';
 
   <script>
     import { requireAuth } from '../../lib/session';
-    import { createPlant } from '../../lib/plants';
+    import { createPlant, uploadPlantPhoto, updatePlant } from '../../lib/plants';
     import { readPlantForm } from '../../lib/plant-form';
 
     const form = document.getElementById('plant-form') as HTMLFormElement;
@@ -35,13 +35,24 @@ import '../../styles/global.css';
         messageEl.className = 'hidden';
 
         try {
-          const plant = readPlantForm(form);
-          if (!plant.common_name) {
+          const plantData = readPlantForm(form);
+          if (!plantData.common_name) {
             showError('El nombre común es obligatorio.');
             submitBtn.disabled = false;
             return;
           }
-          const created = await createPlant(user.id, { ...plant, photo_url: null });
+
+          // Crear la planta primero para obtener el ID (se necesita para el path de la foto)
+          const created = await createPlant(user.id, { ...plantData, photo_url: null });
+
+          // Subir foto si se seleccionó una
+          const photoInput = form.elements.namedItem('photo') as HTMLInputElement;
+          const photoFile = photoInput.files?.[0];
+          if (photoFile) {
+            const photoUrl = await uploadPlantPhoto(photoFile, user.id, created.id);
+            await updatePlant(created.id, { photo_url: photoUrl });
+          }
+
           window.location.href = `${import.meta.env.BASE_URL}plants/detail?id=${created.id}`;
         } catch (err) {
           showError(err instanceof Error ? `Error al guardar: ${err.message}` : 'Error al guardar.');
