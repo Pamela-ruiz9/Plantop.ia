@@ -372,12 +372,10 @@ import {
   }
 
   // --- Foto ---
-  function showPhotoPreview(url: string, isUserPhoto: boolean) {
+  function showPhotoPreview(url: string, _isUserPhoto: boolean) {
     photoPreview.src = url;
     photoPreviewContainer.classList.remove('hidden');
-    if (isUserPhoto) {
-      photoUploadArea.classList.add('hidden');
-    }
+    photoUploadArea.classList.add('hidden');
   }
 
   function hidePhotoPreview() {
