@@ -1,7 +1,4 @@
 ---
-// Formulario reutilizable para crear/editar una planta.
-// El comportamiento de submit (crear vs actualizar) lo maneja el script de la página que lo usa,
-// este componente solo pinta los campos del esquema.
 import {
   LOCATIONS,
   HEALTH_STATUSES,
@@ -15,6 +12,60 @@ import {
 ---
 
 <form id="plant-form" class="flex flex-col gap-5">
+
+  <!-- Buscador de catálogo -->
+  <div class="relative">
+    <label for="catalog-search" class="mb-1 block text-xs text-slate-400">
+      Buscar en el catálogo (opcional — pre-llena los campos de cuidado)
+    </label>
+    <input
+      id="catalog-search"
+      type="text"
+      placeholder="ej. Monstera, Poto, Helecho de Boston…"
+      autocomplete="off"
+      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+    />
+    <ul
+      id="catalog-dropdown"
+      class="absolute z-10 mt-1 hidden max-h-60 w-full overflow-auto rounded-md border border-slate-700 bg-slate-900 shadow-lg"
+    ></ul>
+    <p id="catalog-selected" class="mt-1 hidden text-xs text-green-400"></p>
+    <input type="hidden" name="species_id" id="species_id" />
+  </div>
+
+  <!-- Foto -->
+  <fieldset class="flex flex-col gap-3">
+    <legend class="mb-1 text-sm font-medium text-slate-300">Foto</legend>
+    <div id="photo-preview-container" class="hidden">
+      <img
+        id="photo-preview"
+        src=""
+        alt="Vista previa"
+        class="h-40 w-full rounded-md border border-slate-700 object-cover"
+      />
+      <div class="mt-2 flex gap-3">
+        <label
+          for="photo-input"
+          class="cursor-pointer text-xs text-slate-400 hover:text-slate-200"
+        >Cambiar foto</label>
+        <button type="button" id="remove-photo-btn" class="text-xs text-red-400 hover:text-red-300">
+          Quitar foto
+        </button>
+      </div>
+    </div>
+    <div id="photo-upload-area">
+      <label
+        for="photo-input"
+        class="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-slate-600 px-4 py-6 text-sm text-slate-400 transition hover:border-slate-400 hover:text-slate-200"
+      >
+        <span>📷</span>
+        <span>Agregar foto (opcional)</span>
+      </label>
+    </div>
+    <input id="photo-input" name="photo" type="file" accept="image/*" class="sr-only" />
+    <input type="hidden" name="photo_action" id="photo_action" value="keep" />
+  </fieldset>
+
   <fieldset class="flex flex-col gap-3">
     <legend class="mb-1 text-sm font-medium text-slate-300">Datos básicos</legend>
 
@@ -241,3 +292,126 @@ import {
     </a>
   </div>
 </form>
+
+<script>
+  import { searchCatalog } from '../lib/catalog';
+  import { fillFormFromCatalog } from '../lib/plant-form';
+  import type { PlantCatalog } from '../types/catalog';
+
+  const searchInput = document.getElementById('catalog-search') as HTMLInputElement;
+  const dropdown = document.getElementById('catalog-dropdown') as HTMLUListElement;
+  const speciesIdInput = document.getElementById('species_id') as HTMLInputElement;
+  const selectedLabel = document.getElementById('catalog-selected') as HTMLParagraphElement;
+  const form = document.getElementById('plant-form') as HTMLFormElement;
+
+  const photoInput = document.getElementById('photo-input') as HTMLInputElement;
+  const photoPreview = document.getElementById('photo-preview') as HTMLImageElement;
+  const photoPreviewContainer = document.getElementById('photo-preview-container') as HTMLDivElement;
+  const photoUploadArea = document.getElementById('photo-upload-area') as HTMLDivElement;
+  const photoActionInput = document.getElementById('photo_action') as HTMLInputElement;
+  const removePhotoBtn = document.getElementById('remove-photo-btn') as HTMLButtonElement;
+
+  // --- Catálogo ---
+  let debounceTimer: ReturnType<typeof setTimeout>;
+
+  function closeDropdown() {
+    dropdown.classList.add('hidden');
+    dropdown.innerHTML = '';
+  }
+
+  function selectCatalogPlant(plant: PlantCatalog) {
+    speciesIdInput.value = plant.id;
+    searchInput.value = plant.popular_name ?? plant.common_name;
+    selectedLabel.textContent = `✓ Datos de "${plant.common_name}" cargados. Podés editar cualquier campo.`;
+    selectedLabel.classList.remove('hidden');
+    closeDropdown();
+    fillFormFromCatalog(form, plant);
+
+    // Si el catálogo tiene foto de referencia y no hay foto del usuario, previsualizar
+    if (plant.reference_photo_url && !photoInput.files?.length && photoActionInput.value !== 'upload') {
+      showPhotoPreview(plant.reference_photo_url, false);
+    }
+  }
+
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const term = (e.target as HTMLInputElement).value.trim();
+    if (term.length < 2) { closeDropdown(); return; }
+
+    debounceTimer = setTimeout(async () => {
+      try {
+        const results = await searchCatalog(term);
+        if (results.length === 0) { closeDropdown(); return; }
+        dropdown.innerHTML = results
+          .map(
+            (p, i) => `<li data-i="${i}" class="cursor-pointer px-3 py-2 text-sm hover:bg-slate-800">
+              <span class="font-medium text-slate-200">${escHtml(p.popular_name ?? p.common_name)}</span>
+              <span class="ml-2 text-slate-500">${escHtml(p.common_name)}</span>
+              <span class="ml-1 text-xs italic text-slate-600">${escHtml(p.scientific_name)}</span>
+            </li>`
+          )
+          .join('');
+        dropdown.classList.remove('hidden');
+        dropdown.querySelectorAll<HTMLLIElement>('li').forEach((li, i) => {
+          li.addEventListener('click', () => selectCatalogPlant(results[i]));
+        });
+      } catch { closeDropdown(); }
+    }, 300);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
+      closeDropdown();
+    }
+  });
+
+  function escHtml(str: string): string {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // --- Foto ---
+  function showPhotoPreview(url: string, isUserPhoto: boolean) {
+    photoPreview.src = url;
+    photoPreviewContainer.classList.remove('hidden');
+    if (isUserPhoto) {
+      photoUploadArea.classList.add('hidden');
+    }
+  }
+
+  function hidePhotoPreview() {
+    photoPreview.src = '';
+    photoPreviewContainer.classList.add('hidden');
+    photoUploadArea.classList.remove('hidden');
+  }
+
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files?.[0];
+    if (!file) return;
+    showPhotoPreview(URL.createObjectURL(file), true);
+    photoActionInput.value = 'upload';
+  });
+
+  removePhotoBtn.addEventListener('click', () => {
+    photoInput.value = '';
+    hidePhotoPreview();
+    photoActionInput.value = 'remove';
+  });
+
+  // Expuesto para que las páginas (edit.astro) puedan pre-cargar la foto existente
+  (window as any).__plantFormSetPhoto = (url: string | null) => {
+    if (url) {
+      showPhotoPreview(url, true);
+      photoActionInput.value = 'keep';
+    } else {
+      hidePhotoPreview();
+    }
+  };
+
+  // Expuesto para que edit.astro muestre el catálogo vinculado
+  (window as any).__plantFormSetCatalogLabel = (name: string) => {
+    selectedLabel.textContent = `✓ Basado en "${name}". Podés cambiar la planta buscando arriba.`;
+    selectedLabel.classList.remove('hidden');
+  };
+</script>
