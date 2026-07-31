@@ -56,6 +56,7 @@ import '../../styles/global.css';
           window.location.href = `${import.meta.env.BASE_URL}plants/detail?id=${created.id}`;
         } catch (err) {
           showError(err instanceof Error ? `Error al guardar: ${err.message}` : 'Error al guardar.');
+        } finally {
           submitBtn.disabled = false;
         }
       });
