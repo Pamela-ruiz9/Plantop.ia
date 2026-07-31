@@ -17,7 +17,7 @@ import '../../styles/global.css';
 
   <script>
     import { requireAuth } from '../../lib/session';
-    import { getPlant, updatePlant } from '../../lib/plants';
+    import { getPlant, updatePlant, uploadPlantPhoto, deletePlantPhoto } from '../../lib/plants';
     import { readPlantForm, fillPlantForm } from '../../lib/plant-form';
 
     const loadingEl = document.getElementById('loading')!;
@@ -59,6 +59,23 @@ import '../../styles/global.css';
         loadingEl.classList.add('hidden');
         wrapperEl.classList.remove('hidden');
 
+        // Pre-cargar foto existente (personal o de catálogo como referencia)
+        const displayPhoto = plant.photo_url ?? plant.plant_catalog?.reference_photo_url ?? null;
+        if (displayPhoto) {
+          (window as any).__plantFormSetPhoto?.(displayPhoto);
+          // Si es foto de catálogo (no personal), marcar como 'keep' sin contar como upload
+          if (!plant.photo_url) {
+            (document.getElementById('photo_action') as HTMLInputElement).value = 'keep';
+          }
+        }
+
+        // Mostrar label del catálogo vinculado
+        if (plant.plant_catalog) {
+          const catalogName = plant.plant_catalog.popular_name ?? plant.plant_catalog.common_name;
+          (window as any).__plantFormSetCatalogLabel?.(catalogName);
+          (document.getElementById('catalog-search') as HTMLInputElement).value = catalogName;
+        }
+
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           submitBtn.disabled = true;
@@ -71,10 +88,25 @@ import '../../styles/global.css';
               submitBtn.disabled = false;
               return;
             }
-            await updatePlant(id, patch);
+
+            // Manejar foto
+            const photoAction = (form.elements.namedItem('photo_action') as HTMLInputElement).value;
+            const photoInput = form.elements.namedItem('photo') as HTMLInputElement;
+
+            if (photoAction === 'upload' && photoInput.files?.[0]) {
+              const url = await uploadPlantPhoto(photoInput.files[0], user.id, id);
+              await updatePlant(id, { ...patch, photo_url: url });
+            } else if (photoAction === 'remove') {
+              if (plant.photo_url) await deletePlantPhoto(plant.photo_url);
+              await updatePlant(id, { ...patch, photo_url: null });
+            } else {
+              await updatePlant(id, patch);
+            }
+
             window.location.href = `${import.meta.env.BASE_URL}plants/detail?id=${id}`;
           } catch (err) {
             showError(err instanceof Error ? `Error al guardar: ${err.message}` : 'Error al guardar.');
+          } finally {
             submitBtn.disabled = false;
           }
         });
