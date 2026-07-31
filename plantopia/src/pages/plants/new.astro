@@ -41,7 +41,7 @@ import '../../styles/global.css';
             submitBtn.disabled = false;
             return;
           }
-          const created = await createPlant(user.id, plant);
+          const created = await createPlant(user.id, { ...plant, photo_url: null });
           window.location.href = `${import.meta.env.BASE_URL}plants/detail?id=${created.id}`;
         } catch (err) {
           showError(err instanceof Error ? `Error al guardar: ${err.message}` : 'Error al guardar.');

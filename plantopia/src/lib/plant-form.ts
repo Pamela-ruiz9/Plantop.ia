@@ -1,5 +1,6 @@
 // Serialización entre el <form id="plant-form"> (ver PlantForm.astro) y el tipo Plant.
 import type { Plant, PlantLocation, HealthStatus, LightType, GrowthPhase } from '../types/database';
+import type { PlantCatalog } from '../types/catalog';
 import type { PlantInsert } from './plants';
 
 function strOrNull(v: FormDataEntryValue | null): string | null {
@@ -14,13 +15,14 @@ function numOrNull(v: FormDataEntryValue | null): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-export function readPlantForm(form: HTMLFormElement): PlantInsert {
+// Retorna todos los campos del form excepto photo_url (manejada por las páginas).
+export type PlantFormData = Omit<PlantInsert, 'photo_url'>;
+
+export function readPlantForm(form: HTMLFormElement): PlantFormData {
   const fd = new FormData(form);
   return {
     common_name: String(fd.get('common_name') ?? '').trim(),
     species: strOrNull(fd.get('species')),
-    photo_url: null,
-    species_id: null,
     location: (strOrNull(fd.get('location')) as PlantLocation | null) ?? null,
     health_status: (strOrNull(fd.get('health_status')) as HealthStatus | null) ?? 'healthy',
     notes: strOrNull(fd.get('notes')),
@@ -42,6 +44,8 @@ export function readPlantForm(form: HTMLFormElement): PlantInsert {
     current_phase: (strOrNull(fd.get('current_phase')) as GrowthPhase | null) ?? 'vegetative',
     current_phase_started_at:
       strOrNull(fd.get('current_phase_started_at')) ?? new Date().toISOString().slice(0, 10),
+
+    species_id: strOrNull(fd.get('species_id')),
   };
 }
 
@@ -68,4 +72,24 @@ export function fillPlantForm(form: HTMLFormElement, plant: Plant): void {
   setVal('last_fertilized', plant.last_fertilized);
   setVal('current_phase', plant.current_phase);
   setVal('current_phase_started_at', plant.current_phase_started_at);
+  setVal('species_id', plant.species_id);
+}
+
+// Pre-llena los campos de cuidado del formulario con datos del catálogo.
+// Sobreescribe siempre — el usuario edita después si quiere.
+export function fillFormFromCatalog(form: HTMLFormElement, catalog: PlantCatalog): void {
+  const setVal = (name: string, value: string | number | null | undefined) => {
+    const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+    if (el) el.value = value === null || value === undefined ? '' : String(value);
+  };
+
+  setVal('species_id', catalog.id);
+  setVal('common_name', catalog.popular_name ?? catalog.common_name);
+  setVal('species', catalog.scientific_name);
+  setVal('light_type', catalog.light_type);
+  setVal('light_hours_per_day', catalog.light_hours_per_day);
+  setVal('watering_frequency_days', catalog.watering_frequency_days);
+  setVal('substrate_mix', catalog.substrate_mix);
+  setVal('substrate_ph', catalog.substrate_ph_min);
+  setVal('fertilizing_frequency_days', catalog.fertilizing_frequency_days);
 }
