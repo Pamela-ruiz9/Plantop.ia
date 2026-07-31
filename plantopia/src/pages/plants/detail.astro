@@ -11,6 +11,16 @@ import '../../styles/global.css';
     <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
 
     <div id="content" class="hidden">
+      <!-- Hero foto -->
+      <div id="hero-photo-container" class="hidden mb-6">
+        <img
+          id="hero-photo"
+          src=""
+          alt=""
+          class="h-48 w-full rounded-xl object-cover border border-slate-800"
+        />
+      </div>
+
       <div class="mb-6 flex items-start justify-between gap-3">
         <div>
           <h1 id="plant-name" class="text-2xl font-semibold"></h1>
@@ -25,6 +35,14 @@ import '../../styles/global.css';
           </button>
         </div>
       </div>
+
+      <!-- Info del catálogo (se muestra solo si la planta tiene species_id) -->
+      <section id="catalog-info" class="hidden mb-6 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <details>
+          <summary class="cursor-pointer text-sm font-medium text-slate-300">📚 Info del catálogo</summary>
+          <div id="catalog-info-grid" class="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"></div>
+        </details>
+      </section>
 
       <section class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3" id="stats-grid"></section>
 
@@ -103,9 +121,13 @@ import '../../styles/global.css';
       LIGHT_LABELS,
       PHASE_LABELS,
       EVENT_LABELS,
+      CARE_DIFFICULTY_LABELS,
+      ADULT_SIZE_LABELS,
+      FLOWERING_SEASON_LABELS,
+      CATALOG_LOCATION_LABELS,
     } from '../../lib/labels';
-    import type { Plant, EventType } from '../../types/database';
-    import type { GrowthPhase } from '../../types/database';
+    import type { PlantWithFullCatalog } from '../../types/catalog';
+    import type { EventType, GrowthPhase } from '../../types/database';
 
     const loadingEl = document.getElementById('loading')!;
     const errorEl = document.getElementById('error')!;
@@ -228,10 +250,51 @@ import '../../styles/global.css';
       }
     }
 
-    function renderPlant(plant: Plant) {
+    function renderPlant(plant: PlantWithFullCatalog) {
       document.getElementById('plant-name')!.textContent = plant.common_name;
       document.getElementById('plant-species')!.textContent = plant.species ?? '';
       document.getElementById('plant-notes')!.textContent = plant.notes || 'Sin notas.';
+
+      // Foto hero
+      const displayPhoto = plant.photo_url ?? plant.plant_catalog?.reference_photo_url ?? null;
+      const heroContainer = document.getElementById('hero-photo-container')!;
+      const heroImg = document.getElementById('hero-photo') as HTMLImageElement;
+      if (displayPhoto) {
+        heroImg.src = displayPhoto;
+        heroImg.alt = plant.common_name;
+        heroContainer.classList.remove('hidden');
+      } else {
+        heroContainer.classList.add('hidden');
+      }
+
+      // Info del catálogo
+      const catalogSection = document.getElementById('catalog-info')!;
+      const catalogGrid = document.getElementById('catalog-info-grid')!;
+      const cat = plant.plant_catalog;
+      if (cat) {
+        catalogSection.classList.remove('hidden');
+        const items: Array<{ label: string; value: string }> = [
+          { label: 'Origen', value: cat.origin ?? '—' },
+          { label: 'Dificultad', value: cat.care_difficulty ? CARE_DIFFICULTY_LABELS[cat.care_difficulty] : '—' },
+          { label: 'Tóxica mascotas', value: cat.toxic_to_pets ? '⚠️ Sí' : '✅ No' },
+          { label: 'Tóxica niños', value: cat.toxic_to_children ? '⚠️ Sí' : '✅ No' },
+          { label: 'Temp. mínima', value: cat.min_temperature_celsius != null ? `${cat.min_temperature_celsius}°C` : '—' },
+          { label: 'Tamaño adulto', value: cat.adult_size ? ADULT_SIZE_LABELS[cat.adult_size] : '—' },
+          { label: 'Floración', value: cat.flowering_season ? FLOWERING_SEASON_LABELS[cat.flowering_season] : '—' },
+          { label: 'Ideal para', value: cat.location ? CATALOG_LOCATION_LABELS[cat.location] : '—' },
+        ];
+        catalogGrid.innerHTML = items
+          .map(
+            (item) => `
+          <div class="rounded-lg border border-slate-800 bg-slate-950 p-2">
+            <p class="text-xs text-slate-500">${item.label}</p>
+            <p class="mt-0.5 text-sm font-medium text-slate-200">${escapeHtml(item.value)}</p>
+          </div>`
+          )
+          .join('');
+      } else {
+        catalogSection.classList.add('hidden');
+      }
 
       const health = plant.health_status ?? 'healthy';
       const stats = [
@@ -258,7 +321,7 @@ import '../../styles/global.css';
         .join('');
     }
 
-    async function loadEvents(plant: Plant, plantId: string) {
+    async function loadEvents(plant: PlantWithFullCatalog, plantId: string) {
       const events = await listPlantEvents(plantId);
       const listEl = document.getElementById('event-list')!;
       const emptyEl = document.getElementById('event-empty')!;
