@@ -259,7 +259,7 @@ import '../../styles/global.css';
       const displayPhoto = plant.photo_url ?? plant.plant_catalog?.reference_photo_url ?? null;
       const heroContainer = document.getElementById('hero-photo-container')!;
       const heroImg = document.getElementById('hero-photo') as HTMLImageElement;
-      if (displayPhoto) {
+      if (displayPhoto && displayPhoto.startsWith('https://')) {
         heroImg.src = displayPhoto;
         heroImg.alt = plant.common_name;
         heroContainer.classList.remove('hidden');
@@ -339,7 +339,7 @@ import '../../styles/global.css';
         <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
           <div>
             <span class="font-medium text-slate-200">${EVENT_LABELS[ev.event_type]}</span>
-            <span class="ml-2 text-slate-500">${ev.event_date}</span>
+            <span class="ml-2 text-slate-500">${escapeHtml(ev.event_date)}</span>
             ${ev.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(ev.note)}</p>` : ''}
           </div>
           <button data-event-id="${ev.id}" class="delete-event shrink-0 text-xs text-red-400 hover:text-red-300">Borrar</button>
@@ -378,7 +378,7 @@ import '../../styles/global.css';
           (log) => `
         <li class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
           <span class="font-medium text-slate-200">${PHASE_LABELS[log.phase]}</span>
-          <span class="ml-2 text-slate-500">${log.started_at} → ${log.ended_at ?? 'en curso'}</span>
+          <span class="ml-2 text-slate-500">${escapeHtml(log.started_at)} → ${escapeHtml(log.ended_at ?? 'en curso')}</span>
           ${log.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(log.note)}</p>` : ''}
         </li>
       `
