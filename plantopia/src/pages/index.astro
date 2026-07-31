@@ -97,7 +97,7 @@ import '../styles/global.css';
       userEmailEl.classList.remove('hidden');
 
       try {
-        const plants = await listPlants();
+        const plants = await listPlants(user.id);
         loadingEl.classList.add('hidden');
 
         if (plants.length === 0) {

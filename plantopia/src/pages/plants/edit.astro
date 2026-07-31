@@ -47,7 +47,7 @@ import '../../styles/global.css';
       backLink.href = `${import.meta.env.BASE_URL}plants/detail?id=${id}`;
 
       try {
-        const plant = await getPlant(id);
+        const plant = await getPlant(user.id, id);
         if (!plant) {
           loadingEl.classList.add('hidden');
           errorEl.classList.remove('hidden');

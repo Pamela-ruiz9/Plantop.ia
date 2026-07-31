@@ -7,23 +7,46 @@ import type {
   PlantPhaseLog,
   GrowthPhase,
 } from '../types/database';
+import type { PlantWithCatalog, PlantWithFullCatalog } from '../types/catalog';
 
 export type PlantInsert = Omit<Plant, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 export type PlantUpdate = Partial<PlantInsert>;
 
-export async function listPlants(): Promise<Plant[]> {
+export async function listPlants(_userId: string): Promise<PlantWithCatalog[]> {
   const { data, error } = await supabase
     .from('plants')
-    .select('*')
+    .select('*, plant_catalog(id, common_name, popular_name, reference_photo_url)')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as unknown as PlantWithCatalog[];
 }
 
-export async function getPlant(id: string): Promise<Plant | null> {
-  const { data, error } = await supabase.from('plants').select('*').eq('id', id).maybeSingle();
+export async function getPlant(_userId: string, id: string): Promise<PlantWithFullCatalog | null> {
+  const { data, error } = await supabase
+    .from('plants')
+    .select('*, plant_catalog(*)')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw error;
-  return data;
+  return data as unknown as PlantWithFullCatalog | null;
+}
+
+export async function uploadPlantPhoto(file: File, userId: string, plantId: string): Promise<string> {
+  const ext = file.name.split('.').pop();
+  const path = `${userId}/${plantId}.${ext}`;
+  const { error } = await supabase.storage
+    .from('plant-photos')
+    .upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from('plant-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function deletePlantPhoto(photoUrl: string): Promise<void> {
+  const marker = '/plant-photos/';
+  const path = photoUrl.slice(photoUrl.indexOf(marker) + marker.length);
+  const { error } = await supabase.storage.from('plant-photos').remove([path]);
+  if (error) throw error;
 }
 
 export async function createPlant(userId: string, plant: PlantInsert): Promise<Plant> {

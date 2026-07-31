@@ -130,7 +130,7 @@ import '../../styles/global.css';
       }
 
       try {
-        const plant = await getPlant(id);
+        const plant = await getPlant(user.id, id);
         if (!plant) {
           loadingEl.classList.add('hidden');
           errorEl.classList.remove('hidden');
