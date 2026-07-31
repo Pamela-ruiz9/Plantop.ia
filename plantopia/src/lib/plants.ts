@@ -18,6 +18,7 @@ export async function listPlants(_userId: string): Promise<PlantWithCatalog[]> {
     .select('*, plant_catalog(id, common_name, popular_name, reference_photo_url)')
     .order('created_at', { ascending: false });
   if (error) throw error;
+  // Supabase infers SelectQueryError for joins without declared FK relations in hand-written Database type.
   return (data ?? []) as unknown as PlantWithCatalog[];
 }
 
@@ -28,12 +29,14 @@ export async function getPlant(_userId: string, id: string): Promise<PlantWithFu
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
+  // Supabase infers SelectQueryError for joins without declared FK relations in hand-written Database type.
   return data as unknown as PlantWithFullCatalog | null;
 }
 
 export async function uploadPlantPhoto(file: File, userId: string, plantId: string): Promise<string> {
-  const ext = file.name.split('.').pop();
-  const path = `${userId}/${plantId}.${ext}`;
+  const parts = file.name.split('.');
+  const ext = parts.length > 1 ? parts.pop() : '';
+  const path = ext ? `${userId}/${plantId}.${ext}` : `${userId}/${plantId}`;
   const { error } = await supabase.storage
     .from('plant-photos')
     .upload(path, file, { upsert: true });
@@ -44,7 +47,9 @@ export async function uploadPlantPhoto(file: File, userId: string, plantId: stri
 
 export async function deletePlantPhoto(photoUrl: string): Promise<void> {
   const marker = '/plant-photos/';
-  const path = photoUrl.slice(photoUrl.indexOf(marker) + marker.length);
+  const idx = photoUrl.indexOf(marker);
+  if (idx === -1) throw new Error(`Unexpected photo URL format: ${photoUrl}`);
+  const path = photoUrl.slice(idx + marker.length);
   const { error } = await supabase.storage.from('plant-photos').remove([path]);
   if (error) throw error;
 }

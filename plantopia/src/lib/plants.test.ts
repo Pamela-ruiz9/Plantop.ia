@@ -228,4 +228,8 @@ describe('deletePlantPhoto', () => {
 
     await expect(deletePlantPhoto(url)).rejects.toThrow('Remove failed');
   });
+
+  it('deletePlantPhoto throws on unexpected URL format', async () => {
+    await expect(deletePlantPhoto('https://example.com/not-storage/file.jpg')).rejects.toThrow('Unexpected photo URL format');
+  });
 });
