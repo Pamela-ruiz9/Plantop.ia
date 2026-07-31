@@ -6,6 +6,10 @@ import type {
   GrowthPhase,
   EventType,
 } from '../types/database';
+import type {
+  HumidityLevel, CareDifficulty, FloweringSeason,
+  AdultSize, PlantType, CatalogLocation,
+} from '../types/catalog';
 
 export const LOCATION_LABELS: Record<PlantLocation, string> = {
   indoor: 'Interior',
@@ -72,3 +76,54 @@ export const EVENT_TYPES: EventType[] = [
   'photo_added',
   'note',
 ];
+
+export const HUMIDITY_LABELS: Record<HumidityLevel, string> = {
+  low: 'Baja',
+  medium: 'Media',
+  high: 'Alta',
+};
+
+export const CARE_DIFFICULTY_LABELS: Record<CareDifficulty, string> = {
+  easy: 'Fácil',
+  medium: 'Media',
+  hard: 'Difícil',
+};
+
+export const FLOWERING_SEASON_LABELS: Record<FloweringSeason, string> = {
+  spring: 'Primavera',
+  summer: 'Verano',
+  fall: 'Otoño',
+  winter: 'Invierno',
+  year_round: 'Todo el año',
+  none: 'No florece',
+};
+
+export const ADULT_SIZE_LABELS: Record<AdultSize, string> = {
+  compact: 'Compacta',
+  medium: 'Mediana',
+  large: 'Grande',
+  xlarge: 'Muy grande',
+};
+
+export const PLANT_TYPE_LABELS: Record<PlantType, string> = {
+  suculenta: 'Suculenta',
+  tropical: 'Tropical',
+  cactus: 'Cactus',
+  helecho: 'Helecho',
+  trepadora: 'Trepadora',
+  árbol: 'Árbol',
+  otra: 'Otra',
+};
+
+export const CATALOG_LOCATION_LABELS: Record<CatalogLocation, string> = {
+  indoor: 'Interior',
+  outdoor: 'Exterior',
+  both: 'Interior y exterior',
+};
+
+export const HUMIDITY_LEVELS: HumidityLevel[] = ['low', 'medium', 'high'];
+export const CARE_DIFFICULTIES: CareDifficulty[] = ['easy', 'medium', 'hard'];
+export const FLOWERING_SEASONS: FloweringSeason[] = ['spring', 'summer', 'fall', 'winter', 'year_round', 'none'];
+export const ADULT_SIZES: AdultSize[] = ['compact', 'medium', 'large', 'xlarge'];
+export const PLANT_TYPES: PlantType[] = ['suculenta', 'tropical', 'cactus', 'helecho', 'trepadora', 'árbol', 'otra'];
+export const CATALOG_LOCATIONS: CatalogLocation[] = ['indoor', 'outdoor', 'both'];
