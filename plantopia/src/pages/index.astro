@@ -48,7 +48,7 @@ import '../styles/global.css';
     import { requireAuth, signOut } from '../lib/session';
     import { listPlants } from '../lib/plants';
     import { HEALTH_LABELS, HEALTH_COLORS, PHASE_LABELS, LOCATION_LABELS } from '../lib/labels';
-    import type { Plant } from '../types/database';
+    import type { PlantWithCatalog } from '../types/catalog';
 
     const loadingEl = document.getElementById('loading')!;
     const errorEl = document.getElementById('error')!;
@@ -59,25 +59,36 @@ import '../styles/global.css';
 
     logoutBtn.addEventListener('click', () => signOut());
 
-    function card(plant: Plant): string {
+    function card(plant: PlantWithCatalog): string {
       const health = plant.health_status ?? 'healthy';
       const healthColor = HEALTH_COLORS[health];
       const healthLabel = HEALTH_LABELS[health];
       const location = plant.location ? LOCATION_LABELS[plant.location] : '—';
       const base = import.meta.env.BASE_URL;
+      const displayPhoto = plant.photo_url ?? plant.plant_catalog?.reference_photo_url ?? null;
+
       return `
-        <a href="${base}plants/detail?id=${plant.id}" class="block rounded-xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-600">
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <h3 class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</h3>
-              ${plant.species ? `<p class="text-xs text-slate-500">${escapeHtml(plant.species)}</p>` : ''}
-            </div>
-            <span class="shrink-0 rounded-full border px-2 py-0.5 text-xs ${healthColor}">${healthLabel}</span>
+        <a href="${base}plants/detail?id=${plant.id}" class="block overflow-hidden rounded-xl border border-slate-800 bg-slate-900 transition hover:border-slate-600">
+          <div class="h-40 bg-slate-800">
+            ${
+              displayPhoto
+                ? `<img src="${escapeHtml(displayPhoto)}" alt="${escapeHtml(plant.common_name)}" class="h-full w-full object-cover" loading="lazy" />`
+                : `<div class="flex h-full items-center justify-center text-4xl">🪴</div>`
+            }
           </div>
-          <div class="mt-3 flex flex-wrap gap-3 text-xs text-slate-400">
-            <span>📍 ${location}</span>
-            <span>🌱 ${PHASE_LABELS[plant.current_phase]}</span>
-            ${plant.last_watered ? `<span>💧 ${plant.last_watered}</span>` : ''}
+          <div class="p-4">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h3 class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</h3>
+                ${plant.species ? `<p class="text-xs text-slate-500">${escapeHtml(plant.species)}</p>` : ''}
+              </div>
+              <span class="shrink-0 rounded-full border px-2 py-0.5 text-xs ${healthColor}">${healthLabel}</span>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-3 text-xs text-slate-400">
+              <span>📍 ${location}</span>
+              <span>🌱 ${PHASE_LABELS[plant.current_phase]}</span>
+              ${plant.last_watered ? `<span>💧 ${plant.last_watered}</span>` : ''}
+            </div>
           </div>
         </a>
       `;
