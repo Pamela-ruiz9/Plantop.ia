@@ -35,9 +35,11 @@ const {
       // Registro del service worker (offline shell + instalación PWA)
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch((err) => {
-            console.error('SW registration failed:', err);
-          });
+          // updateViaCache:'none' hace que el browser siempre verifique sw.js en la red,
+          // ignorando el HTTP cache (GitHub Pages lo sirve con max-age=600).
+          navigator.serviceWorker.register(`${base}sw.js`, { scope: base, updateViaCache: 'none' })
+            .then((reg) => reg.update())
+            .catch((err) => console.error('SW registration failed:', err));
         });
       }
     </script>
