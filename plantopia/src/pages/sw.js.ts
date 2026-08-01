@@ -43,10 +43,11 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
-  // Navegación: network-first con fallback a cache (para funcionar offline)
+  // Navegación: network-first ignorando HTTP cache, con fallback offline.
+  // cache:'no-cache' evita que el browser sirva HTML viejo (GitHub Pages lo cachea 10 min).
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-cache' })
         .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
