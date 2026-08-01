@@ -6,11 +6,13 @@ export const prerender = true;
 
 export const GET: APIRoute = () => {
   const base = import.meta.env.BASE_URL;
+  // Cambia con cada build para invalidar el cache anterior automáticamente.
+  const buildId = new Date().toISOString().slice(0, 16).replace('T', '-').replace(/:/g, '-');
 
   const body = `// Plantopia — service worker básico (offline-first shell)
 // Estrategia: cache-first para assets estáticos, network-first para navegación.
 
-const CACHE_NAME = 'plantopia-shell-v1';
+const CACHE_NAME = 'plantopia-shell-${buildId}';
 const BASE = ${JSON.stringify(base)};
 const SHELL_ASSETS = [
   BASE,
