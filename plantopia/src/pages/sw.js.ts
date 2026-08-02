@@ -58,7 +58,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets estáticos: cache-first
+  // Solo cachear assets del mismo origen (JS, CSS, iconos).
+  // Las requests a APIs externas (Supabase) pasan directo a la red para siempre
+  // tener datos frescos — el SW nunca debe cachear respuestas de base de datos.
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Assets estáticos locales: cache-first
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
