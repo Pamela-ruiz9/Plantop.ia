@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { getAISettings, saveAISettings, clearAISettings, parseIdentification } from './ai';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { getAISettings, saveAISettings, clearAISettings, parseIdentification, identifyPlantFromImage } from './ai';
 
 describe('AI settings', () => {
   beforeEach(() => localStorage.clear());
@@ -63,5 +63,61 @@ describe('parseIdentification', () => {
 
   it('throws on empty string', () => {
     expect(() => parseIdentification('')).toThrow('No se pudo identificar la planta.');
+  });
+});
+
+describe('identifyPlantFromImage - malformed vision API responses', () => {
+  const file = new File(['fake-image-bytes'], 'plant.png', { type: 'image/png' });
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('throws a friendly error when Anthropic returns 200 with empty content (e.g. safety filter)', async () => {
+    saveAISettings({ provider: 'anthropic', key: 'sk-ant-test' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: [] }),
+    }));
+
+    await expect(identifyPlantFromImage(file)).rejects.toThrow('No se pudo identificar la planta.');
+  });
+
+  it('throws a friendly error when OpenAI returns 200 with missing message content', async () => {
+    saveAISettings({ provider: 'openai', key: 'sk-test' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: {} }] }),
+    }));
+
+    await expect(identifyPlantFromImage(file)).rejects.toThrow('No se pudo identificar la planta.');
+  });
+
+  it('throws a friendly error when Gemini returns 200 with no candidates', async () => {
+    saveAISettings({ provider: 'gemini', key: 'AItest' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ candidates: [] }),
+    }));
+
+    await expect(identifyPlantFromImage(file)).rejects.toThrow('No se pudo identificar la planta.');
+  });
+
+  it('still succeeds when the response shape is well-formed', async () => {
+    saveAISettings({ provider: 'anthropic', key: 'sk-ant-test' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: [{ text: '{"common_name":"Monstera"}' }] }),
+    }));
+
+    await expect(identifyPlantFromImage(file)).resolves.toEqual({ common_name: 'Monstera' });
   });
 });

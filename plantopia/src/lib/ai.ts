@@ -123,7 +123,9 @@ async function callVisionAI(
     });
     if (!res.ok) throw new Error(mapHttpError(res.status));
     const data = await res.json();
-    return (data.content[0].text as string);
+    const text = data?.content?.[0]?.text;
+    if (typeof text !== 'string') throw new Error('No se pudo identificar la planta.');
+    return text;
   }
 
   if (provider === 'openai') {
@@ -144,7 +146,9 @@ async function callVisionAI(
     });
     if (!res.ok) throw new Error(mapHttpError(res.status));
     const data = await res.json();
-    return (data.choices[0].message.content as string);
+    const text = data?.choices?.[0]?.message?.content;
+    if (typeof text !== 'string') throw new Error('No se pudo identificar la planta.');
+    return text;
   }
 
   // gemini
@@ -165,7 +169,9 @@ async function callVisionAI(
   );
   if (!res.ok) throw new Error(mapHttpError(res.status));
   const data = await res.json();
-  return (data.candidates[0].content.parts[0].text as string);
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (typeof text !== 'string') throw new Error('No se pudo identificar la planta.');
+  return text;
 }
 
 export async function identifyPlantFromImage(file: File): Promise<PlantIdentification> {
