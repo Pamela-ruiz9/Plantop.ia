@@ -55,6 +55,26 @@ export const EVENT_LABELS: Record<EventType, string> = {
   note: 'Nota',
 };
 
+export const EVENT_ICONS: Record<EventType, string> = {
+  watered: '💧',
+  fertilized: '🌿',
+  repotted: '🪴',
+  pruned: '✂️',
+  pest_detected: '🐛',
+  pest_treated: '🧴',
+  phase_change: '🔄',
+  photo_added: '📷',
+  note: '📝',
+};
+
+export const PHASE_ICONS: Record<GrowthPhase, string> = {
+  vegetative: '🌱',
+  flowering: '🌸',
+  fruiting: '🍓',
+  dormancy: '😴',
+  latent: '⏸️',
+};
+
 export const LOCATIONS: PlantLocation[] = ['indoor', 'outdoor'];
 export const HEALTH_STATUSES: HealthStatus[] = ['healthy', 'needs_attention', 'sick'];
 export const LIGHT_TYPES: LightType[] = ['direct', 'bright_indirect', 'low_indirect', 'shade'];

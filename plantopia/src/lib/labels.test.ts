@@ -6,6 +6,8 @@ import {
   LIGHT_LABELS,
   PHASE_LABELS,
   EVENT_LABELS,
+  EVENT_ICONS,
+  PHASE_ICONS,
   LOCATIONS,
   HEALTH_STATUSES,
   LIGHT_TYPES,
@@ -45,6 +47,16 @@ describe('labels', () => {
   it('EVENT_TYPES covers EVENT_LABELS exactly', () => {
     for (const e of EVENT_TYPES) expect(EVENT_LABELS[e]).toBeTruthy();
     expect(EVENT_TYPES).toHaveLength(Object.keys(EVENT_LABELS).length);
+  });
+
+  it('EVENT_TYPES covers EVENT_ICONS exactly', () => {
+    for (const e of EVENT_TYPES) expect(EVENT_ICONS[e]).toBeTruthy();
+    expect(EVENT_TYPES).toHaveLength(Object.keys(EVENT_ICONS).length);
+  });
+
+  it('GROWTH_PHASES covers PHASE_ICONS exactly', () => {
+    for (const p of GROWTH_PHASES) expect(PHASE_ICONS[p]).toBeTruthy();
+    expect(GROWTH_PHASES).toHaveLength(Object.keys(PHASE_ICONS).length);
   });
 });
 
