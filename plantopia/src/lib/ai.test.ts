@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { getAISettings, saveAISettings, clearAISettings, parseIdentification, identifyPlantFromImage } from './ai';
+import {
+  getAISettings,
+  saveAISettings,
+  clearAISettings,
+  parseIdentification,
+  identifyPlantFromImage,
+  getChatHistory,
+  saveChatHistory,
+  clearChatHistory,
+  type Message,
+} from './ai';
 
 describe('AI settings', () => {
   beforeEach(() => localStorage.clear());
@@ -119,5 +129,42 @@ describe('identifyPlantFromImage - malformed vision API responses', () => {
     }));
 
     await expect(identifyPlantFromImage(file)).resolves.toEqual({ common_name: 'Monstera' });
+  });
+});
+
+describe('chat history', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('getChatHistory returns [] when no history', () => {
+    expect(getChatHistory('plant-abc')).toEqual([]);
+  });
+
+  it('saveChatHistory + getChatHistory round-trip', () => {
+    const messages: Message[] = [{ role: 'user', content: 'Hola' }];
+    saveChatHistory('plant-abc', messages);
+    expect(getChatHistory('plant-abc')).toEqual(messages);
+  });
+
+  it('saveChatHistory truncates to last 20 messages', () => {
+    const messages: Message[] = Array.from({ length: 25 }, (_, i) => ({
+      role: 'user' as const,
+      content: `msg ${i}`,
+    }));
+    saveChatHistory('plant-abc', messages);
+    const saved = getChatHistory('plant-abc');
+    expect(saved).toHaveLength(20);
+    expect(saved[0].content).toBe('msg 5');
+    expect(saved[19].content).toBe('msg 24');
+  });
+
+  it('clearChatHistory removes history', () => {
+    saveChatHistory('plant-abc', [{ role: 'user', content: 'test' }]);
+    clearChatHistory('plant-abc');
+    expect(getChatHistory('plant-abc')).toEqual([]);
+  });
+
+  it('getChatHistory ignores history of other plants', () => {
+    saveChatHistory('plant-abc', [{ role: 'user', content: 'test' }]);
+    expect(getChatHistory('plant-xyz')).toEqual([]);
   });
 });

@@ -188,3 +188,115 @@ export async function identifyPlantFromImage(file: File): Promise<PlantIdentific
     throw err;
   }
 }
+
+const CHAT_PREFIX = 'plantopia_chat_';
+const CHAT_MAX = 20;
+
+export function getChatHistory(plantId: string): Message[] {
+  const raw = localStorage.getItem(`${CHAT_PREFIX}${plantId}`);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as Message[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveChatHistory(plantId: string, messages: Message[]): void {
+  const trimmed = messages.slice(-CHAT_MAX);
+  localStorage.setItem(`${CHAT_PREFIX}${plantId}`, JSON.stringify(trimmed));
+}
+
+export function clearChatHistory(plantId: string): void {
+  localStorage.removeItem(`${CHAT_PREFIX}${plantId}`);
+}
+
+async function callChatAI(
+  settings: AISettings,
+  systemPrompt: string,
+  messages: Message[],
+): Promise<string> {
+  const { provider, key } = settings;
+
+  if (provider === 'anthropic') {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-allow-browser': 'true',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      }),
+    });
+    if (!res.ok) throw new Error(mapHttpError(res.status));
+    const data = await res.json();
+    const text = data?.content?.[0]?.text;
+    if (typeof text !== 'string') throw new Error('No se pudo obtener respuesta de la IA.');
+    return text;
+  }
+
+  if (provider === 'openai') {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: 1024,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(mapHttpError(res.status));
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content;
+    if (typeof text !== 'string') throw new Error('No se pudo obtener respuesta de la IA.');
+    return text;
+  }
+
+  // gemini — usa 'model' en lugar de 'assistant'
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: messages.map((m) => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        })),
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(mapHttpError(res.status));
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (typeof text !== 'string') throw new Error('No se pudo obtener respuesta de la IA.');
+  return text;
+}
+
+export async function chatAboutPlant(
+  systemPrompt: string,
+  history: Message[],
+  userMessage: string,
+): Promise<string> {
+  const settings = getAISettings();
+  if (!settings) throw new Error('No hay IA configurada.');
+  const messages: Message[] = [...history, { role: 'user', content: userMessage }];
+  try {
+    return await callChatAI(settings, systemPrompt, messages);
+  } catch (err) {
+    if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
+      throw new Error('Sin conexión. Verificá tu internet.');
+    }
+    throw err;
+  }
+}
