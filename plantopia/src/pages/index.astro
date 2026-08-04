@@ -38,7 +38,7 @@ import '../styles/global.css';
   <script>
     import { requireAuth } from '../lib/session';
     import { listPlants } from '../lib/plants';
-    import { HEALTH_LABELS, HEALTH_COLORS, PHASE_LABELS, LOCATION_LABELS } from '../lib/labels';
+    import { HEALTH_LABELS, HEALTH_COLORS, PHASE_LABELS, PHASE_ICONS, LOCATION_LABELS } from '../lib/labels';
     import type { PlantWithCatalog } from '../types/catalog';
 
     const loadingEl = document.getElementById('loading')!;
@@ -73,7 +73,7 @@ import '../styles/global.css';
             </div>
             <div class="mt-3 flex flex-wrap gap-3 text-xs text-slate-400">
               <span>📍 ${location}</span>
-              <span>🌱 ${PHASE_LABELS[plant.current_phase]}</span>
+              <span>${PHASE_ICONS[plant.current_phase]} ${PHASE_LABELS[plant.current_phase]}</span>
               ${plant.last_watered ? `<span>💧 ${plant.last_watered}</span>` : ''}
             </div>
           </div>
