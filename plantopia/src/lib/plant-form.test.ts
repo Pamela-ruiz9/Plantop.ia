@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { readPlantForm, fillPlantForm, fillFormFromCatalog } from './plant-form';
+import { readPlantForm, fillPlantForm, fillFormFromCatalog, fillFormFromAI } from './plant-form';
 import type { Plant } from '../types/database';
 import type { PlantCatalog } from '../types/catalog';
+import type { PlantIdentification } from './ai';
 
 function makeForm(fields: Record<string, string>): HTMLFormElement {
   const form = document.createElement('form');
@@ -208,5 +209,56 @@ describe('fillFormFromCatalog', () => {
     fillFormFromCatalog(form, catalog);
 
     expect((form.elements.namedItem('common_name') as HTMLInputElement).value).toBe('Nopal');
+  });
+});
+
+describe('fillFormFromAI', () => {
+  function makeForm(): HTMLFormElement {
+    document.body.innerHTML = `
+      <form id="f">
+        <input name="common_name" />
+        <input name="species" />
+        <input name="light_type" />
+        <input name="light_hours_per_day" />
+        <input name="watering_frequency_days" />
+        <input name="substrate_mix" />
+        <input name="substrate_ph" />
+        <input name="fertilizing_frequency_days" />
+        <input name="species_id" />
+      </form>`;
+    return document.getElementById('f') as HTMLFormElement;
+  }
+
+  it('fills form fields from PlantIdentification', () => {
+    const form = makeForm();
+    const id: PlantIdentification = {
+      common_name: 'Monstera',
+      popular_name: 'Costilla de Adán',
+      scientific_name: 'Monstera deliciosa',
+      light_type: 'bright_indirect',
+      light_hours_per_day: 6,
+      watering_frequency_days: 10,
+      substrate_mix: 'tierra negra + perlita',
+      substrate_ph: 6.0,
+      fertilizing_frequency_days: 30,
+    };
+    fillFormFromAI(form, id);
+    const val = (name: string) =>
+      (form.elements.namedItem(name) as HTMLInputElement).value;
+    expect(val('common_name')).toBe('Costilla de Adán'); // popular_name tiene prioridad
+    expect(val('species')).toBe('Monstera deliciosa');
+    expect(val('light_type')).toBe('bright_indirect');
+    expect(val('light_hours_per_day')).toBe('6');
+    expect(val('watering_frequency_days')).toBe('10');
+    expect(val('substrate_mix')).toBe('tierra negra + perlita');
+    expect(val('substrate_ph')).toBe('6');
+    expect(val('fertilizing_frequency_days')).toBe('30');
+    expect(val('species_id')).toBe(''); // no linkea al catálogo
+  });
+
+  it('uses common_name when popular_name is absent', () => {
+    const form = makeForm();
+    fillFormFromAI(form, { common_name: 'Pothos' });
+    expect((form.elements.namedItem('common_name') as HTMLInputElement).value).toBe('Pothos');
   });
 });

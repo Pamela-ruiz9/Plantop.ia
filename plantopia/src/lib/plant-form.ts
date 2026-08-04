@@ -2,6 +2,7 @@
 import type { Plant, PlantLocation, HealthStatus, LightType, GrowthPhase } from '../types/database';
 import type { PlantCatalog } from '../types/catalog';
 import type { PlantInsert } from './plants';
+import type { PlantIdentification } from './ai';
 
 function strOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? '').trim();
@@ -88,4 +89,18 @@ export function fillFormFromCatalog(form: HTMLFormElement, catalog: PlantCatalog
   setVal(form, 'substrate_mix', catalog.substrate_mix);
   setVal(form, 'substrate_ph', catalog.substrate_ph_min);
   setVal(form, 'fertilizing_frequency_days', catalog.fertilizing_frequency_days);
+}
+
+// Pre-llena los campos de cuidado del formulario con datos de una identificación por IA.
+// A diferencia de fillFormFromCatalog, no linkea a un registro del catálogo (species_id queda vacío).
+export function fillFormFromAI(form: HTMLFormElement, id: PlantIdentification): void {
+  setVal(form, 'common_name', id.popular_name ?? id.common_name);
+  setVal(form, 'species', id.scientific_name);
+  setVal(form, 'light_type', id.light_type);
+  setVal(form, 'light_hours_per_day', id.light_hours_per_day);
+  setVal(form, 'watering_frequency_days', id.watering_frequency_days);
+  setVal(form, 'substrate_mix', id.substrate_mix);
+  setVal(form, 'substrate_ph', id.substrate_ph);
+  setVal(form, 'fertilizing_frequency_days', id.fertilizing_frequency_days);
+  setVal(form, 'species_id', ''); // no linkea al catálogo
 }

@@ -14,7 +14,8 @@ import '../../styles/global.css';
   <script>
     import { requireAuth } from '../../lib/session';
     import { createPlant, uploadPlantPhoto, updatePlant } from '../../lib/plants';
-    import { readPlantForm } from '../../lib/plant-form';
+    import { readPlantForm, fillFormFromAI } from '../../lib/plant-form';
+    import { AI_IDENTIFICATION_STORAGE_KEY, type PlantIdentification } from '../../lib/ai';
 
     const form = document.getElementById('plant-form') as HTMLFormElement;
     const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
@@ -28,6 +29,23 @@ import '../../styles/global.css';
     async function init() {
       const user = await requireAuth();
       if (!user) return;
+
+      // Pre-llenar desde identificación de IA (viene de /identify via sessionStorage)
+      const aiRaw = sessionStorage.getItem(AI_IDENTIFICATION_STORAGE_KEY);
+      if (aiRaw) {
+        sessionStorage.removeItem(AI_IDENTIFICATION_STORAGE_KEY);
+        try {
+          const identification = JSON.parse(aiRaw) as PlantIdentification;
+          fillFormFromAI(form, identification);
+          const label = document.getElementById('catalog-selected') as HTMLParagraphElement;
+          label.textContent = `✓ Identificado por IA: "${identification.popular_name ?? identification.common_name}". Podés editar cualquier campo.`;
+          label.classList.remove('hidden');
+          (document.getElementById('catalog-search') as HTMLInputElement).value =
+            identification.popular_name ?? identification.common_name;
+        } catch {
+          // sessionStorage corrupto — ignorar silenciosamente
+        }
+      }
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
