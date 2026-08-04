@@ -1,0 +1,179 @@
+---
+// plantopia/src/pages/settings.astro
+import Layout from '../layouts/Layout.astro';
+import BottomNav from '../components/BottomNav.astro';
+import '../styles/global.css';
+---
+
+<Layout title="Plantopia — Ajustes">
+  <main class="mx-auto min-h-screen max-w-lg px-4 py-8">
+    <h1 class="mb-6 text-xl font-semibold">Ajustes</h1>
+
+    <!-- Sección IA -->
+    <section class="mb-8">
+      <h2 class="mb-3 text-sm font-medium text-slate-300">Proveedor de IA</h2>
+      <p id="ai-status" class="mb-4 text-sm text-slate-400">Sin configurar</p>
+
+      <div class="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <div>
+          <label for="ai-provider" class="mb-1 block text-xs text-slate-400">Proveedor</label>
+          <select
+            id="ai-provider"
+            class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+          >
+            <option value="anthropic">Claude (Anthropic)</option>
+            <option value="openai">GPT-4o (OpenAI)</option>
+            <option value="gemini">Gemini 1.5 Flash (Google — gratis)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="ai-key" class="mb-1 block text-xs text-slate-400">API Key</label>
+          <div class="flex gap-2">
+            <input
+              id="ai-key"
+              type="password"
+              placeholder="Pegá tu key acá"
+              class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+            />
+            <button
+              id="toggle-key"
+              type="button"
+              class="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-400 hover:text-slate-200"
+            >
+              👁
+            </button>
+          </div>
+          <a id="key-help-link" href="#" target="_blank" rel="noopener"
+            class="mt-1 inline-block text-xs text-green-500 hover:text-green-400">
+            ¿Dónde consigo mi key?
+          </a>
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            id="save-btn"
+            type="button"
+            class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500"
+          >
+            Guardar
+          </button>
+          <button
+            id="clear-btn"
+            type="button"
+            class="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:border-slate-500 hover:text-white"
+          >
+            Borrar configuración
+          </button>
+        </div>
+
+        <p id="save-message" class="hidden text-sm"></p>
+      </div>
+    </section>
+
+    <!-- Sección cuenta -->
+    <section>
+      <h2 class="mb-3 text-sm font-medium text-slate-300">Cuenta</h2>
+      <div class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <span id="user-email" class="text-sm text-slate-400">—</span>
+        <button
+          id="logout-btn"
+          type="button"
+          class="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <BottomNav active="settings" />
+
+  <script>
+    import { requireAuth, signOut } from '../lib/session';
+    import { getAISettings, saveAISettings, clearAISettings, type AIProvider } from '../lib/ai';
+
+    const KEY_HELP: Record<AIProvider, { url: string; label: string }> = {
+      anthropic: { url: 'https://console.anthropic.com/', label: 'Obtener key en Anthropic Console' },
+      openai:    { url: 'https://platform.openai.com/api-keys', label: 'Obtener key en OpenAI Platform' },
+      gemini:    { url: 'https://aistudio.google.com/apikey', label: 'Obtener key gratis en Google AI Studio' },
+    };
+
+    const providerEl  = document.getElementById('ai-provider') as HTMLSelectElement;
+    const keyEl       = document.getElementById('ai-key') as HTMLInputElement;
+    const toggleEl    = document.getElementById('toggle-key') as HTMLButtonElement;
+    const helpLinkEl  = document.getElementById('key-help-link') as HTMLAnchorElement;
+    const saveBtn     = document.getElementById('save-btn') as HTMLButtonElement;
+    const clearBtn    = document.getElementById('clear-btn') as HTMLButtonElement;
+    const saveMsg     = document.getElementById('save-message') as HTMLParagraphElement;
+    const statusEl    = document.getElementById('ai-status') as HTMLParagraphElement;
+    const userEmailEl = document.getElementById('user-email') as HTMLSpanElement;
+    const logoutBtn   = document.getElementById('logout-btn') as HTMLButtonElement;
+
+    function updateHelpLink() {
+      const provider = providerEl.value as AIProvider;
+      const info = KEY_HELP[provider];
+      helpLinkEl.href = info.url;
+      helpLinkEl.textContent = info.label;
+    }
+
+    function refreshStatus() {
+      const s = getAISettings();
+      if (s) {
+        const names: Record<AIProvider, string> = {
+          anthropic: 'Claude (Anthropic)',
+          openai: 'GPT-4o (OpenAI)',
+          gemini: 'Gemini 1.5 Flash',
+        };
+        statusEl.textContent = `✓ Configurado: ${names[s.provider]}`;
+        statusEl.className = 'mb-4 text-sm text-green-400';
+        providerEl.value = s.provider;
+      } else {
+        statusEl.textContent = 'Sin configurar';
+        statusEl.className = 'mb-4 text-sm text-slate-400';
+      }
+      updateHelpLink();
+    }
+
+    providerEl.addEventListener('change', updateHelpLink);
+
+    toggleEl.addEventListener('click', () => {
+      keyEl.type = keyEl.type === 'password' ? 'text' : 'password';
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const key = keyEl.value.trim();
+      if (!key) {
+        saveMsg.textContent = 'Ingresá una key válida.';
+        saveMsg.className = 'text-sm text-red-400';
+        saveMsg.classList.remove('hidden');
+        return;
+      }
+      saveAISettings({ provider: providerEl.value as AIProvider, key });
+      keyEl.value = '';
+      saveMsg.textContent = '✓ Guardado.';
+      saveMsg.className = 'text-sm text-green-400';
+      saveMsg.classList.remove('hidden');
+      refreshStatus();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      clearAISettings();
+      keyEl.value = '';
+      saveMsg.textContent = 'Configuración borrada.';
+      saveMsg.className = 'text-sm text-slate-400';
+      saveMsg.classList.remove('hidden');
+      refreshStatus();
+    });
+
+    async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+      userEmailEl.textContent = user.email ?? '—';
+      logoutBtn.addEventListener('click', () => signOut());
+      refreshStatus();
+    }
+
+    init();
+  </script>
+</Layout>

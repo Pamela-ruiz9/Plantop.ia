@@ -1,0 +1,198 @@
+---
+// plantopia/src/pages/identify.astro
+import Layout from '../layouts/Layout.astro';
+import BottomNav from '../components/BottomNav.astro';
+import '../styles/global.css';
+---
+
+<Layout title="Plantopia — Identificar planta">
+  <main class="mx-auto min-h-screen max-w-lg px-4 py-8">
+    <h1 class="mb-2 text-xl font-semibold">Identificar planta</h1>
+    <p class="mb-6 text-sm text-slate-400">Subí una foto y la IA identificará la planta y pre-llenará el formulario.</p>
+
+    <!-- Estado: sin IA -->
+    <div id="no-ai" class="hidden rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
+      <p class="mb-4 text-sm text-slate-400">Configurá tu proveedor de IA para usar esta función.</p>
+      <a
+        href={`${import.meta.env.BASE_URL}settings`}
+        class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500"
+      >
+        Ir a Ajustes
+      </a>
+    </div>
+
+    <!-- Estado: con IA -->
+    <div id="with-ai" class="hidden flex flex-col gap-5">
+
+      <!-- Upload -->
+      <div id="upload-section">
+        <div id="photo-preview-container" class="hidden mb-3">
+          <img
+            id="photo-preview"
+            src=""
+            alt="Vista previa"
+            class="h-52 w-full rounded-xl border border-slate-700 object-cover"
+          />
+          <button
+            id="change-photo"
+            type="button"
+            class="mt-2 text-xs text-slate-400 hover:text-slate-200"
+          >
+            Cambiar foto
+          </button>
+        </div>
+
+        <label
+          id="upload-label"
+          for="photo-input"
+          class="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-600 px-4 py-12 text-center transition hover:border-slate-400"
+        >
+          <span class="text-4xl">📷</span>
+          <span class="text-sm text-slate-400">Tocá para subir una foto de tu planta</span>
+        </label>
+        <input id="photo-input" type="file" accept="image/*" class="sr-only" />
+      </div>
+
+      <button
+        id="identify-btn"
+        type="button"
+        disabled
+        class="rounded-md bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Identificar planta
+      </button>
+
+      <p id="identify-error" class="hidden rounded-md border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-300"></p>
+
+      <!-- Resultado -->
+      <div id="result-card" class="hidden rounded-xl border border-green-900 bg-green-950 p-4">
+        <p class="mb-1 text-xs text-green-400">✓ Planta identificada</p>
+        <h2 id="result-name" class="text-lg font-semibold text-slate-100"></h2>
+        <p id="result-popular" class="text-sm text-slate-400"></p>
+        <p id="result-scientific" class="mt-0.5 text-xs italic text-slate-500"></p>
+        <p id="result-description" class="mt-3 text-sm text-slate-300"></p>
+        <button
+          id="add-plant-btn"
+          type="button"
+          class="mt-4 w-full rounded-md bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-500"
+        >
+          Agregar planta →
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <BottomNav active="identify" />
+
+  <script>
+    import { requireAuth } from '../lib/session';
+    import {
+      getAISettings,
+      identifyPlantFromImage,
+      type PlantIdentification,
+      AI_IDENTIFICATION_STORAGE_KEY,
+    } from '../lib/ai';
+
+    const noAiEl        = document.getElementById('no-ai')!;
+    const withAiEl      = document.getElementById('with-ai')!;
+    const photoInput    = document.getElementById('photo-input') as HTMLInputElement;
+    const previewCont   = document.getElementById('photo-preview-container')!;
+    const previewImg    = document.getElementById('photo-preview') as HTMLImageElement;
+    const uploadLabel   = document.getElementById('upload-label')!;
+    const changePhotoBtn= document.getElementById('change-photo')!;
+    const identifyBtn   = document.getElementById('identify-btn') as HTMLButtonElement;
+    const errorEl       = document.getElementById('identify-error')!;
+    const resultCard    = document.getElementById('result-card')!;
+    const resultName    = document.getElementById('result-name')!;
+    const resultPopular = document.getElementById('result-popular')!;
+    const resultScientific = document.getElementById('result-scientific')!;
+    const resultDesc    = document.getElementById('result-description')!;
+    const addPlantBtn   = document.getElementById('add-plant-btn') as HTMLButtonElement;
+
+    let currentFile: File | null = null;
+    let lastIdentification: PlantIdentification | null = null;
+
+    function showPreview(file: File) {
+      previewImg.src = URL.createObjectURL(file);
+      previewCont.classList.remove('hidden');
+      uploadLabel.classList.add('hidden');
+      identifyBtn.disabled = false;
+      identifyBtn.textContent = 'Identificar planta';
+      resultCard.classList.add('hidden');
+      errorEl.classList.add('hidden');
+    }
+
+    function resetUpload() {
+      currentFile = null;
+      lastIdentification = null;
+      photoInput.value = '';
+      previewImg.src = '';
+      previewCont.classList.add('hidden');
+      uploadLabel.classList.remove('hidden');
+      identifyBtn.disabled = true;
+      identifyBtn.textContent = 'Identificar planta';
+      resultCard.classList.add('hidden');
+      errorEl.classList.add('hidden');
+    }
+
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files?.[0];
+      if (!file) return;
+      currentFile = file;
+      showPreview(file);
+    });
+
+    changePhotoBtn.addEventListener('click', () => resetUpload());
+
+    identifyBtn.addEventListener('click', async () => {
+      if (!currentFile) return;
+      const fileAtRequestTime = currentFile;
+      identifyBtn.disabled = true;
+      identifyBtn.textContent = 'Identificando…';
+      errorEl.classList.add('hidden');
+      resultCard.classList.add('hidden');
+
+      try {
+        const result = await identifyPlantFromImage(fileAtRequestTime);
+        if (fileAtRequestTime !== currentFile) return; // stale response, user moved on
+
+        lastIdentification = result;
+        resultName.textContent = result.common_name;
+        resultPopular.textContent = result.popular_name ? `"${result.popular_name}"` : '';
+        resultScientific.textContent = result.scientific_name ?? '';
+        resultDesc.textContent = result.description ?? '';
+        resultCard.classList.remove('hidden');
+      } catch (err) {
+        if (fileAtRequestTime !== currentFile) return; // stale error, ignore too
+        errorEl.textContent = err instanceof Error ? err.message : 'Error al identificar la planta.';
+        errorEl.classList.remove('hidden');
+      } finally {
+        if (fileAtRequestTime === currentFile) {
+          identifyBtn.disabled = false;
+          identifyBtn.textContent = 'Identificar planta';
+        }
+      }
+    });
+
+    addPlantBtn.addEventListener('click', () => {
+      if (!lastIdentification) return;
+      sessionStorage.setItem(AI_IDENTIFICATION_STORAGE_KEY, JSON.stringify(lastIdentification));
+      window.location.href = `${import.meta.env.BASE_URL}plants/new`;
+    });
+
+    async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const settings = getAISettings();
+      if (!settings) {
+        noAiEl.classList.remove('hidden');
+      } else {
+        withAiEl.classList.remove('hidden');
+      }
+    }
+
+    init();
+  </script>
+</Layout>
