@@ -26,6 +26,8 @@ export interface PlantIdentification {
 const PROVIDER_KEY = 'plantopia_ai_provider';
 const API_KEY_KEY = 'plantopia_ai_key';
 
+export const AI_IDENTIFICATION_STORAGE_KEY = 'plantopia_ai_identification';
+
 export function getAISettings(): AISettings | null {
   const provider = localStorage.getItem(PROVIDER_KEY) as AIProvider | null;
   const key = localStorage.getItem(API_KEY_KEY);

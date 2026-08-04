@@ -87,7 +87,12 @@ import '../styles/global.css';
 
   <script>
     import { requireAuth } from '../lib/session';
-    import { getAISettings, identifyPlantFromImage, type PlantIdentification } from '../lib/ai';
+    import {
+      getAISettings,
+      identifyPlantFromImage,
+      type PlantIdentification,
+      AI_IDENTIFICATION_STORAGE_KEY,
+    } from '../lib/ai';
 
     const noAiEl        = document.getElementById('no-ai')!;
     const withAiEl      = document.getElementById('with-ai')!;
@@ -119,6 +124,7 @@ import '../styles/global.css';
 
     function resetUpload() {
       currentFile = null;
+      lastIdentification = null;
       photoInput.value = '';
       previewImg.src = '';
       previewCont.classList.add('hidden');
@@ -139,32 +145,37 @@ import '../styles/global.css';
 
     identifyBtn.addEventListener('click', async () => {
       if (!currentFile) return;
+      const fileAtRequestTime = currentFile;
       identifyBtn.disabled = true;
       identifyBtn.textContent = 'Identificando…';
       errorEl.classList.add('hidden');
       resultCard.classList.add('hidden');
 
       try {
-        const result = await identifyPlantFromImage(currentFile);
-        lastIdentification = result;
+        const result = await identifyPlantFromImage(fileAtRequestTime);
+        if (fileAtRequestTime !== currentFile) return; // stale response, user moved on
 
+        lastIdentification = result;
         resultName.textContent = result.common_name;
         resultPopular.textContent = result.popular_name ? `"${result.popular_name}"` : '';
         resultScientific.textContent = result.scientific_name ?? '';
         resultDesc.textContent = result.description ?? '';
         resultCard.classList.remove('hidden');
       } catch (err) {
+        if (fileAtRequestTime !== currentFile) return; // stale error, ignore too
         errorEl.textContent = err instanceof Error ? err.message : 'Error al identificar la planta.';
         errorEl.classList.remove('hidden');
       } finally {
-        identifyBtn.disabled = false;
-        identifyBtn.textContent = 'Identificar planta';
+        if (fileAtRequestTime === currentFile) {
+          identifyBtn.disabled = false;
+          identifyBtn.textContent = 'Identificar planta';
+        }
       }
     });
 
     addPlantBtn.addEventListener('click', () => {
       if (!lastIdentification) return;
-      sessionStorage.setItem('plantopia_ai_identification', JSON.stringify(lastIdentification));
+      sessionStorage.setItem(AI_IDENTIFICATION_STORAGE_KEY, JSON.stringify(lastIdentification));
       window.location.href = `${import.meta.env.BASE_URL}plants/new`;
     });
 
