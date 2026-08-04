@@ -273,10 +273,12 @@ Notas: ${plant.notes ?? 'ninguna'}`;
           const chatList   = document.getElementById('chat-messages') as HTMLUListElement;
 
           async function sendMessage() {
+            if (chatSend.disabled) return; // already sending, ignore duplicate triggers (e.g. double-Enter)
             const text = chatInput.value.trim();
             if (!text) return;
             chatInput.value = '';
             chatSend.disabled = true;
+            chatInput.disabled = true;
             chatError.classList.add('hidden');
 
             const userMsg: Message = { role: 'user', content: text };
@@ -297,11 +299,13 @@ Notas: ${plant.notes ?? 'ninguna'}`;
               renderChatMessages(chatHistory);
             } catch (err) {
               chatHistory = chatHistory.slice(0, -1); // quitar el mensaje del usuario si falló
+              chatInput.value = text; // restore el borrador para que no lo tenga que reescribir
               chatError.textContent = err instanceof Error ? err.message : 'Error al consultar la IA.';
               chatError.classList.remove('hidden');
               renderChatMessages(chatHistory);
             } finally {
               chatSend.disabled = false;
+              chatInput.disabled = false;
             }
           }
 
