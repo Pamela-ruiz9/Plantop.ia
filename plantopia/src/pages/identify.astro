@@ -118,6 +118,7 @@ import '../styles/global.css';
       previewCont.classList.remove('hidden');
       uploadLabel.classList.add('hidden');
       identifyBtn.disabled = false;
+      identifyBtn.textContent = 'Identificar planta';
       resultCard.classList.add('hidden');
       errorEl.classList.add('hidden');
     }
@@ -130,6 +131,7 @@ import '../styles/global.css';
       previewCont.classList.add('hidden');
       uploadLabel.classList.remove('hidden');
       identifyBtn.disabled = true;
+      identifyBtn.textContent = 'Identificar planta';
       resultCard.classList.add('hidden');
       errorEl.classList.add('hidden');
     }
