@@ -21,6 +21,19 @@ import '../styles/global.css';
       </a>
     </div>
 
+    <div id="filters" class="hidden mb-4 flex flex-wrap items-center gap-3">
+      <select
+        id="filter-phase"
+        class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-300 outline-none focus:border-green-500"
+      >
+        <option value="">Todas las fases</option>
+      </select>
+      <label class="flex items-center gap-1.5 text-sm text-slate-300">
+        <input id="filter-attention" type="checkbox" class="rounded border-slate-700 bg-slate-950" />
+        ⚠️ Solo necesita atención
+      </label>
+    </div>
+
     <div id="loading" class="py-12 text-center text-sm text-slate-500">Cargando plantas…</div>
     <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
     <div id="empty" class="hidden flex-col items-center gap-3 py-16 text-center">
@@ -31,6 +44,9 @@ import '../styles/global.css';
       </a>
     </div>
     <div id="plant-grid" class="hidden grid gap-4 sm:grid-cols-2"></div>
+    <p id="filter-empty" class="hidden py-12 text-center text-sm text-slate-500">
+      Ninguna planta coincide con el filtro.
+    </p>
   </main>
 
   <BottomNav active="collection" />
@@ -38,13 +54,33 @@ import '../styles/global.css';
   <script>
     import { requireAuth } from '../lib/session';
     import { listPlants } from '../lib/plants';
-    import { HEALTH_LABELS, HEALTH_COLORS, PHASE_LABELS, PHASE_ICONS, LOCATION_LABELS } from '../lib/labels';
+    import { isCareOverdue } from '../lib/plant-status';
+    import {
+      HEALTH_LABELS,
+      HEALTH_COLORS,
+      PHASE_LABELS,
+      PHASE_ICONS,
+      LOCATION_LABELS,
+      GROWTH_PHASES,
+    } from '../lib/labels';
     import type { PlantWithCatalog } from '../types/catalog';
+    import type { GrowthPhase } from '../types/database';
 
     const loadingEl = document.getElementById('loading')!;
     const errorEl = document.getElementById('error')!;
     const emptyEl = document.getElementById('empty')!;
     const gridEl = document.getElementById('plant-grid')!;
+    const filtersEl = document.getElementById('filters')!;
+    const filterEmptyEl = document.getElementById('filter-empty')!;
+    const filterPhaseEl = document.getElementById('filter-phase') as HTMLSelectElement;
+    const filterAttentionEl = document.getElementById('filter-attention') as HTMLInputElement;
+
+    for (const phase of GROWTH_PHASES) {
+      const opt = document.createElement('option');
+      opt.value = phase;
+      opt.textContent = `${PHASE_ICONS[phase]} ${PHASE_LABELS[phase]}`;
+      filterPhaseEl.appendChild(opt);
+    }
 
     function card(plant: PlantWithCatalog): string {
       const health = plant.health_status ?? 'healthy';
@@ -75,6 +111,7 @@ import '../styles/global.css';
               <span>📍 ${location}</span>
               <span>${PHASE_ICONS[plant.current_phase]} ${PHASE_LABELS[plant.current_phase]}</span>
               ${plant.last_watered ? `<span>💧 ${plant.last_watered}</span>` : ''}
+              ${isCareOverdue(plant) ? `<span class="text-amber-400">⚠️ Necesita atención</span>` : ''}
             </div>
           </div>
         </a>
@@ -87,23 +124,50 @@ import '../styles/global.css';
       return div.innerHTML;
     }
 
+    let allPlants: PlantWithCatalog[] = [];
+
+    function applyFilters() {
+      const phase = filterPhaseEl.value as GrowthPhase | '';
+      const onlyAttention = filterAttentionEl.checked;
+
+      const filtered = allPlants.filter((plant) => {
+        if (phase && plant.current_phase !== phase) return false;
+        if (onlyAttention && !isCareOverdue(plant)) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        gridEl.classList.add('hidden');
+        gridEl.classList.remove('grid');
+        filterEmptyEl.classList.remove('hidden');
+        return;
+      }
+
+      filterEmptyEl.classList.add('hidden');
+      gridEl.innerHTML = filtered.map(card).join('');
+      gridEl.classList.remove('hidden');
+      gridEl.classList.add('grid');
+    }
+
+    filterPhaseEl.addEventListener('change', applyFilters);
+    filterAttentionEl.addEventListener('change', applyFilters);
+
     async function init() {
       const user = await requireAuth();
       if (!user) return;
 
       try {
-        const plants = await listPlants(user.id);
+        allPlants = await listPlants(user.id);
         loadingEl.classList.add('hidden');
 
-        if (plants.length === 0) {
+        if (allPlants.length === 0) {
           emptyEl.classList.remove('hidden');
           emptyEl.classList.add('flex');
           return;
         }
 
-        gridEl.innerHTML = plants.map(card).join('');
-        gridEl.classList.remove('hidden');
-        gridEl.classList.add('grid');
+        filtersEl.classList.remove('hidden');
+        applyFilters();
       } catch (err) {
         loadingEl.classList.add('hidden');
         errorEl.classList.remove('hidden');
