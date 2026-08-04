@@ -8,6 +8,7 @@ import {
   getChatHistory,
   saveChatHistory,
   clearChatHistory,
+  chatAboutPlant,
   type Message,
 } from './ai';
 
@@ -166,5 +167,72 @@ describe('chat history', () => {
   it('getChatHistory ignores history of other plants', () => {
     saveChatHistory('plant-abc', [{ role: 'user', content: 'test' }]);
     expect(getChatHistory('plant-xyz')).toEqual([]);
+  });
+
+  it('getChatHistory returns [] when stored value is valid JSON but not an array', () => {
+    localStorage.setItem('plantopia_chat_plant-abc', JSON.stringify({ not: 'an array' }));
+    expect(getChatHistory('plant-abc')).toEqual([]);
+  });
+});
+
+describe('chatAboutPlant - malformed chat API responses', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('throws a friendly error when Anthropic returns 200 with empty content', async () => {
+    saveAISettings({ provider: 'anthropic', key: 'sk-ant-test' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: [] }),
+    }));
+
+    await expect(chatAboutPlant('system prompt', [], '¿Cómo la riego?')).rejects.toThrow(
+      'No se pudo obtener respuesta de la IA.',
+    );
+  });
+
+  it('throws a friendly error when OpenAI returns 200 with missing message content', async () => {
+    saveAISettings({ provider: 'openai', key: 'sk-test' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: {} }] }),
+    }));
+
+    await expect(chatAboutPlant('system prompt', [], '¿Cómo la riego?')).rejects.toThrow(
+      'No se pudo obtener respuesta de la IA.',
+    );
+  });
+
+  it('throws a friendly error when Gemini returns 200 with no candidates', async () => {
+    saveAISettings({ provider: 'gemini', key: 'AItest' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ candidates: [] }),
+    }));
+
+    await expect(chatAboutPlant('system prompt', [], '¿Cómo la riego?')).rejects.toThrow(
+      'No se pudo obtener respuesta de la IA.',
+    );
+  });
+
+  it('still succeeds when the response shape is well-formed', async () => {
+    saveAISettings({ provider: 'anthropic', key: 'sk-ant-test' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: [{ text: 'Regala cada 7 días.' }] }),
+    }));
+
+    await expect(chatAboutPlant('system prompt', [], '¿Cómo la riego?')).resolves.toBe(
+      'Regala cada 7 días.',
+    );
   });
 });

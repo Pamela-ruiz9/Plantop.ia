@@ -196,7 +196,8 @@ export function getChatHistory(plantId: string): Message[] {
   const raw = localStorage.getItem(`${CHAT_PREFIX}${plantId}`);
   if (!raw) return [];
   try {
-    return JSON.parse(raw) as Message[];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Message[]) : [];
   } catch {
     return [];
   }
