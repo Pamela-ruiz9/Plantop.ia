@@ -6,6 +6,8 @@ import {
   countCareOverdue,
   isWateringDueSoon,
   isFertilizingDueSoon,
+  isCareDueSoon,
+  countCareDueSoon,
 } from './plant-status';
 
 const TODAY = new Date('2026-08-15T12:00:00');
@@ -172,5 +174,70 @@ describe('countCareOverdue', () => {
 
   it('counts only the overdue plants', () => {
     expect(countCareOverdue([overdue, notOverdue, overdue], TODAY)).toBe(2);
+  });
+});
+
+describe('isCareDueSoon', () => {
+  it('returns true when only watering is due soon', () => {
+    const plant = {
+      watering_frequency_days: 7,
+      last_watered: '2026-08-10', // until = 2, due soon
+      fertilizing_frequency_days: 30,
+      last_fertilized: '2026-08-01', // until = 16, not due soon
+    };
+    expect(isCareDueSoon(plant, 2, TODAY)).toBe(true);
+  });
+
+  it('returns true when only fertilizing is due soon', () => {
+    const plant = {
+      watering_frequency_days: 7,
+      last_watered: '2026-08-15', // recién regada, until = 7
+      fertilizing_frequency_days: 30,
+      last_fertilized: '2026-07-17', // until = 1, due soon
+    };
+    expect(isCareDueSoon(plant, 2, TODAY)).toBe(true);
+  });
+
+  it('returns false when nothing is due soon or overdue', () => {
+    const plant = {
+      watering_frequency_days: 7,
+      last_watered: '2026-08-15',
+      fertilizing_frequency_days: 30,
+      last_fertilized: '2026-08-01',
+    };
+    expect(isCareDueSoon(plant, 2, TODAY)).toBe(false);
+  });
+
+  it('returns false when watering is already overdue (overdue, not "due soon")', () => {
+    const plant = {
+      watering_frequency_days: 7,
+      last_watered: '2026-08-01', // until = -6, overdue
+      fertilizing_frequency_days: 30,
+      last_fertilized: '2026-08-01', // until = 16, not due soon
+    };
+    expect(isCareDueSoon(plant, 2, TODAY)).toBe(false);
+  });
+});
+
+describe('countCareDueSoon', () => {
+  const dueSoon = {
+    watering_frequency_days: 7,
+    last_watered: '2026-08-10', // until = 2
+    fertilizing_frequency_days: 30,
+    last_fertilized: '2026-08-01',
+  };
+  const notDueSoon = {
+    watering_frequency_days: 7,
+    last_watered: '2026-08-15',
+    fertilizing_frequency_days: 30,
+    last_fertilized: '2026-08-01',
+  };
+
+  it('returns 0 for an empty list', () => {
+    expect(countCareDueSoon([], 2, TODAY)).toBe(0);
+  });
+
+  it('counts only the due-soon plants', () => {
+    expect(countCareDueSoon([dueSoon, notDueSoon, dueSoon], 2, TODAY)).toBe(2);
   });
 });
