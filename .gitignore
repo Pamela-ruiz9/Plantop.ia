@@ -176,3 +176,6 @@ plantopia/.env.local
 
 # Credenciales sensibles — nunca subir
 SUPABASE_SETUP.md
+
+# Mockups de brainstorming (superpowers) — no forman parte del proyecto
+.superpowers/
