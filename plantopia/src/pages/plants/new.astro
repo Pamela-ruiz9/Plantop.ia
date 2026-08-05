@@ -16,6 +16,7 @@ import '../../styles/global.css';
     import { createPlant, uploadPlantPhoto, updatePlant } from '../../lib/plants';
     import { readPlantForm, fillFormFromAI } from '../../lib/plant-form';
     import { AI_IDENTIFICATION_STORAGE_KEY, type PlantIdentification } from '../../lib/ai';
+    import { getPendingPhoto, clearPendingPhoto } from '../../lib/photo-handoff';
 
     const form = document.getElementById('plant-form') as HTMLFormElement;
     const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
@@ -45,6 +46,23 @@ import '../../styles/global.css';
         } catch {
           // sessionStorage corrupto — ignorar silenciosamente
         }
+      }
+
+      // Recuperar la foto identificada en /identify (guardada vía IndexedDB, best-effort).
+      try {
+        const pendingPhoto = await getPendingPhoto();
+        if (pendingPhoto) {
+          await clearPendingPhoto();
+          const photoInput = form.elements.namedItem('photo') as HTMLInputElement;
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(pendingPhoto);
+          photoInput.files = dataTransfer.files;
+          // PlantForm.astro escucha 'change' en este input para mostrar el preview
+          // y marcar photo_action=upload — no necesitamos duplicar esa lógica acá.
+          photoInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } catch (err) {
+        console.warn('No se pudo recuperar la foto de /identify:', err);
       }
 
       form.addEventListener('submit', async (e) => {
