@@ -4,8 +4,9 @@
 // File real entre las dos páginas.
 //
 // Nota: sin tests unitarios — happy-dom (el entorno de Vitest de este repo)
-// no implementa IndexedDB, igual que fileToBase64/callVisionAI en ai.ts no
-// se testean porque dependen de APIs de browser reales.
+// no implementa IndexedDB. (FileReader, en cambio, sí funciona bajo happy-dom:
+// identifyPlantFromImage/fileToBase64 en ai.ts están cubiertas indirectamente
+// por los tests de identifyPlantFromImage en ai.test.ts, mockeando solo fetch.)
 
 const DB_NAME = 'plantopia-photo-handoff';
 const STORE_NAME = 'pending-photo';

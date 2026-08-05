@@ -179,17 +179,23 @@ import '../styles/global.css';
     addPlantBtn.addEventListener('click', async () => {
       if (!lastIdentification) return;
       addPlantBtn.disabled = true;
-      // Guardar la foto es best-effort: si falla (ej. IndexedDB no disponible),
-      // igual navegamos con la identificación — el usuario puede volver a subirla a mano.
-      if (currentFile) {
-        try {
-          await savePendingPhoto(currentFile);
-        } catch (err) {
-          console.warn('No se pudo guardar la foto para /plants/new:', err);
+      try {
+        // Guardar la foto es best-effort: si falla (ej. IndexedDB no disponible),
+        // igual navegamos con la identificación — el usuario puede volver a subirla a mano.
+        if (currentFile) {
+          try {
+            await savePendingPhoto(currentFile);
+          } catch (err) {
+            console.warn('No se pudo guardar la foto para /plants/new:', err);
+          }
         }
+        sessionStorage.setItem(AI_IDENTIFICATION_STORAGE_KEY, JSON.stringify(lastIdentification));
+        window.location.href = `${import.meta.env.BASE_URL}plants/new`;
+      } finally {
+        // Si algo impidió la navegación (ej. sessionStorage lleno/deshabilitado),
+        // no dejar el botón atascado.
+        addPlantBtn.disabled = false;
       }
-      sessionStorage.setItem(AI_IDENTIFICATION_STORAGE_KEY, JSON.stringify(lastIdentification));
-      window.location.href = `${import.meta.env.BASE_URL}plants/new`;
     });
 
     async function init() {

@@ -46,23 +46,31 @@ import '../../styles/global.css';
         } catch {
           // sessionStorage corrupto — ignorar silenciosamente
         }
-      }
 
-      // Recuperar la foto identificada en /identify (guardada vía IndexedDB, best-effort).
-      try {
-        const pendingPhoto = await getPendingPhoto();
-        if (pendingPhoto) {
-          await clearPendingPhoto();
-          const photoInput = form.elements.namedItem('photo') as HTMLInputElement;
-          const dataTransfer = new DataTransfer();
-          dataTransfer.items.add(pendingPhoto);
-          photoInput.files = dataTransfer.files;
-          // PlantForm.astro escucha 'change' en este input para mostrar el preview
-          // y marcar photo_action=upload — no necesitamos duplicar esa lógica acá.
-          photoInput.dispatchEvent(new Event('change', { bubbles: true }));
+        // Recuperar la foto identificada en /identify (guardada vía IndexedDB, best-effort).
+        // Solo se consume junto con la identificación de arriba — ambas se escriben en el
+        // mismo click de "Agregar planta →" en identify.astro, así que atarlas al mismo
+        // `if (aiRaw)` evita que una foto vieja reaparezca en una visita no relacionada.
+        try {
+          const pendingPhoto = await getPendingPhoto();
+          if (pendingPhoto) {
+            await clearPendingPhoto();
+            const photoInput = form.elements.namedItem('photo') as HTMLInputElement;
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(pendingPhoto);
+            photoInput.files = dataTransfer.files;
+            // PlantForm.astro escucha 'change' en este input para mostrar el preview
+            // y marcar photo_action=upload — no necesitamos duplicar esa lógica acá.
+            photoInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        } catch (err) {
+          console.warn('No se pudo recuperar la foto de /identify:', err);
         }
-      } catch (err) {
-        console.warn('No se pudo recuperar la foto de /identify:', err);
+      } else {
+        // Visita "normal" a /plants/new (no vino de /identify): si quedó una foto
+        // huérfana de una sesión de identificación abandonada, la limpiamos para que
+        // nunca se adjunte silenciosamente a una planta sin relación.
+        clearPendingPhoto().catch(() => {});
       }
 
       form.addEventListener('submit', async (e) => {
