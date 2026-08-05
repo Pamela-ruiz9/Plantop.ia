@@ -211,7 +211,7 @@ describe('isCareDueSoon', () => {
   it('returns false when watering is already overdue (overdue, not "due soon")', () => {
     const plant = {
       watering_frequency_days: 7,
-      last_watered: '2026-08-01', // until = -6, overdue
+      last_watered: '2026-08-01', // until = -7, overdue
       fertilizing_frequency_days: 30,
       last_fertilized: '2026-08-01', // until = 16, not due soon
     };
