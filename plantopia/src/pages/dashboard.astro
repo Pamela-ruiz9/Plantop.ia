@@ -15,7 +15,7 @@ import '../styles/global.css';
     <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
 
     <div id="content" class="hidden flex-col gap-6">
-      <section class="grid grid-cols-2 gap-3" id="stats-grid"></section>
+      <section class="grid grid-cols-3 gap-3" id="stats-grid"></section>
 
       <section>
         <h2 class="mb-2 text-sm font-medium text-slate-300">Salud general</h2>
@@ -32,6 +32,12 @@ import '../styles/global.css';
         <ul id="attention-list" class="flex flex-col gap-2"></ul>
         <p id="attention-empty" class="hidden text-sm text-slate-500">Nada pendiente — todo al día 🎉</p>
       </section>
+
+      <section>
+        <h2 class="mb-2 text-sm font-medium text-slate-300">⏳ Vencen pronto</h2>
+        <ul id="due-soon-list" class="flex flex-col gap-2"></ul>
+        <p id="due-soon-empty" class="hidden text-sm text-slate-500">Nada por vencer en los próximos días.</p>
+      </section>
     </div>
   </main>
 
@@ -40,7 +46,14 @@ import '../styles/global.css';
   <script>
     import { requireAuth } from '../lib/session';
     import { listPlants } from '../lib/plants';
-    import { isCareOverdue, isWateringOverdue, isFertilizingOverdue } from '../lib/plant-status';
+    import {
+      isCareOverdue,
+      isCareDueSoon,
+      isWateringOverdue,
+      isFertilizingOverdue,
+      isWateringDueSoon,
+      isFertilizingDueSoon,
+    } from '../lib/plant-status';
     import {
       PHASE_LABELS,
       PHASE_ICONS,
@@ -59,6 +72,8 @@ import '../styles/global.css';
     const phaseBreakdown = document.getElementById('phase-breakdown')!;
     const attentionList = document.getElementById('attention-list')!;
     const attentionEmpty = document.getElementById('attention-empty')!;
+    const dueSoonList = document.getElementById('due-soon-list')!;
+    const dueSoonEmpty = document.getElementById('due-soon-empty')!;
 
     function escapeHtml(str: string): string {
       const div = document.createElement('div');
@@ -73,9 +88,27 @@ import '../styles/global.css';
       return reasons.join(' · ');
     }
 
-    function renderStats(total: number, attentionCount: number) {
+    function dueSoonReasons(plant: PlantWithCatalog): string {
+      const reasons: string[] = [];
+      if (isWateringDueSoon(plant)) reasons.push('💧 riego');
+      if (isFertilizingDueSoon(plant)) reasons.push('🌿 fertilización');
+      return reasons.join(' · ');
+    }
+
+    function thumbnail(plant: PlantWithCatalog): string {
+      const displayPhoto = plant.photo_url ?? plant.plant_catalog?.reference_photo_url ?? null;
+      if (displayPhoto && displayPhoto.startsWith('https://')) {
+        return `<img src="${escapeHtml(displayPhoto)}" alt="" class="h-10 w-10 shrink-0 rounded-lg object-cover" loading="lazy" />`;
+      }
+      return `<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-lg">🪴</div>`;
+    }
+
+    function renderStats(total: number, attentionCount: number, dueSoonCount: number) {
       const attentionCard = attentionCount > 0
         ? { border: 'border-amber-900', bg: 'bg-amber-950', text: 'text-amber-300', label: 'text-amber-400' }
+        : { border: 'border-slate-800', bg: 'bg-slate-900', text: 'text-slate-100', label: 'text-slate-500' };
+      const dueSoonCard = dueSoonCount > 0
+        ? { border: 'border-sky-900', bg: 'bg-sky-950', text: 'text-sky-300', label: 'text-sky-400' }
         : { border: 'border-slate-800', bg: 'bg-slate-900', text: 'text-slate-100', label: 'text-slate-500' };
 
       statsGrid.innerHTML = `
@@ -86,6 +119,10 @@ import '../styles/global.css';
         <div class="rounded-xl border ${attentionCard.border} ${attentionCard.bg} p-4 text-center">
           <p class="text-2xl font-semibold ${attentionCard.text}">${attentionCount}</p>
           <p class="text-xs ${attentionCard.label}">Necesitan atención</p>
+        </div>
+        <div class="rounded-xl border ${dueSoonCard.border} ${dueSoonCard.bg} p-4 text-center">
+          <p class="text-2xl font-semibold ${dueSoonCard.text}">${dueSoonCount}</p>
+          <p class="text-xs ${dueSoonCard.label}">Vencen pronto</p>
         </div>
       `;
     }
@@ -115,12 +152,36 @@ import '../styles/global.css';
       attentionList.innerHTML = attention
         .map(
           (plant) => `
-        <a href="${base}plants/detail?id=${plant.id}" class="flex items-center justify-between gap-2 rounded-lg border border-amber-900 bg-amber-950/30 px-3 py-2 text-sm transition hover:border-amber-700">
-          <div>
+        <a href="${base}plants/detail?id=${plant.id}" class="flex items-center gap-3 rounded-lg border border-amber-900 bg-amber-950/30 px-3 py-2 text-sm transition hover:border-amber-700">
+          ${thumbnail(plant)}
+          <div class="flex-1">
             <span class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</span>
             <span class="ml-2 text-xs text-amber-400">${overdueReasons(plant)}</span>
           </div>
           <span class="text-amber-400">→</span>
+        </a>`
+        )
+        .join('');
+    }
+
+    function renderDueSoonList(dueSoon: PlantWithCatalog[]) {
+      if (dueSoon.length === 0) {
+        dueSoonList.innerHTML = '';
+        dueSoonEmpty.classList.remove('hidden');
+        return;
+      }
+      dueSoonEmpty.classList.add('hidden');
+      const base = import.meta.env.BASE_URL;
+      dueSoonList.innerHTML = dueSoon
+        .map(
+          (plant) => `
+        <a href="${base}plants/detail?id=${plant.id}" class="flex items-center gap-3 rounded-lg border border-sky-900 bg-sky-950/30 px-3 py-2 text-sm transition hover:border-sky-700">
+          ${thumbnail(plant)}
+          <div class="flex-1">
+            <span class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</span>
+            <span class="ml-2 text-xs text-sky-400">${dueSoonReasons(plant)}</span>
+          </div>
+          <span class="text-sky-400">→</span>
         </a>`
         )
         .join('');
@@ -133,15 +194,20 @@ import '../styles/global.css';
       try {
         const plants = await listPlants(user.id);
         const attention = plants.filter((p) => isCareOverdue(p));
+        // Mutuamente excluyente con "attention": una planta ya atrasada en un eje
+        // (riego, por ej.) no aparece también en "vencen pronto" aunque el otro eje
+        // (fertilización) esté por vencer — se cuenta una sola vez, en "atención".
+        const dueSoon = plants.filter((p) => !isCareOverdue(p) && isCareDueSoon(p));
 
         loadingEl.classList.add('hidden');
         contentEl.classList.remove('hidden');
         contentEl.classList.add('flex');
 
-        renderStats(plants.length, attention.length);
+        renderStats(plants.length, attention.length, dueSoon.length);
         renderHealthBreakdown(plants);
         renderPhaseBreakdown(plants);
         renderAttentionList(attention);
+        renderDueSoonList(dueSoon);
       } catch (err) {
         loadingEl.classList.add('hidden');
         errorEl.classList.remove('hidden');
