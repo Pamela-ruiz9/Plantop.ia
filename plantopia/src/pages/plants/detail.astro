@@ -251,15 +251,13 @@ import '../../styles/global.css';
           let chatHistory = getChatHistory(id);
           renderChatMessages(chatHistory);
 
-          function buildSystemPrompt() {
-            return `Sos un experto en cuidado de plantas. Respondé en español, de forma concisa y práctica.
+          const buildSystemPrompt = () => `Sos un experto en cuidado de plantas. Respondé en español, de forma concisa y práctica.
 Planta: ${plant.common_name}${plant.species ? ` (${plant.species})` : ''}
 Salud: ${HEALTH_LABELS[plant.health_status ?? 'healthy']}, Fase: ${PHASE_LABELS[plant.current_phase]}
 Ubicación: ${plant.location ? LOCATION_LABELS[plant.location] : '—'}, Luz: ${plant.light_type ? LIGHT_LABELS[plant.light_type] : '—'}
 Riego cada ${plant.watering_frequency_days ?? '?'} días, último riego: ${plant.last_watered ?? 'desconocido'}
 Última fertilización: ${plant.last_fertilized ?? 'desconocida'}
 Notas: ${plant.notes ?? 'ninguna'}`;
-          }
 
           const chatInput  = document.getElementById('chat-input') as HTMLInputElement;
           const chatSend   = document.getElementById('chat-send') as HTMLButtonElement;
@@ -267,7 +265,7 @@ Notas: ${plant.notes ?? 'ninguna'}`;
           const chatClear  = document.getElementById('chat-clear') as HTMLButtonElement;
           const chatList   = document.getElementById('chat-messages') as HTMLUListElement;
 
-          async function sendMessage() {
+          const sendMessage = async () => {
             if (chatSend.disabled) return; // already sending, ignore duplicate triggers (e.g. double-Enter)
             const text = chatInput.value.trim();
             if (!text) return;
@@ -302,7 +300,7 @@ Notas: ${plant.notes ?? 'ninguna'}`;
               chatSend.disabled = false;
               chatInput.disabled = false;
             }
-          }
+          };
 
           chatSend.addEventListener('click', sendMessage);
           chatInput.addEventListener('keydown', (e) => {

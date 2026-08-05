@@ -124,19 +124,14 @@ import '../styles/global.css';
       return div.innerHTML;
     }
 
-    // Badging API (soportada en Chromium/PWA instalada). No hay tipos en lib.dom.d.ts todavía.
-    interface NavigatorWithBadge extends Navigator {
-      setAppBadge?: (count?: number) => Promise<void>;
-      clearAppBadge?: () => Promise<void>;
-    }
-
+    // Badging API: tipada en lib.dom.d.ts pero el soporte real varía por navegador,
+    // por eso el feature-detect en runtime con 'in' antes de llamarla.
     function updateAppBadge(overdueCount: number) {
-      const nav = navigator as NavigatorWithBadge;
-      if (!nav.setAppBadge || !nav.clearAppBadge) return;
+      if (!('setAppBadge' in navigator) || !('clearAppBadge' in navigator)) return;
       if (overdueCount > 0) {
-        nav.setAppBadge(overdueCount).catch(() => {});
+        navigator.setAppBadge(overdueCount).catch(() => {});
       } else {
-        nav.clearAppBadge().catch(() => {});
+        navigator.clearAppBadge().catch(() => {});
       }
     }
 
