@@ -18,12 +18,12 @@ function daysSince(dateStr: string, today: Date): number {
 }
 
 export function isWateringOverdue(plant: WateringInfo, today: Date = new Date()): boolean {
-  if (!plant.watering_frequency_days || !plant.last_watered) return false;
+  if (plant.watering_frequency_days == null || !plant.last_watered) return false;
   return daysSince(plant.last_watered, today) > plant.watering_frequency_days;
 }
 
 export function isFertilizingOverdue(plant: FertilizingInfo, today: Date = new Date()): boolean {
-  if (!plant.fertilizing_frequency_days || !plant.last_fertilized) return false;
+  if (plant.fertilizing_frequency_days == null || !plant.last_fertilized) return false;
   return daysSince(plant.last_fertilized, today) > plant.fertilizing_frequency_days;
 }
 

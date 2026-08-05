@@ -24,6 +24,11 @@ describe('isWateringOverdue', () => {
   it('returns false when watered today', () => {
     expect(isWateringOverdue({ watering_frequency_days: 7, last_watered: '2026-08-15' }, TODAY)).toBe(false);
   });
+
+  it('treats a frequency of 0 (water every day) as a valid schedule, not "unset"', () => {
+    expect(isWateringOverdue({ watering_frequency_days: 0, last_watered: '2026-08-15' }, TODAY)).toBe(false);
+    expect(isWateringOverdue({ watering_frequency_days: 0, last_watered: '2026-08-14' }, TODAY)).toBe(true);
+  });
 });
 
 describe('isFertilizingOverdue', () => {
