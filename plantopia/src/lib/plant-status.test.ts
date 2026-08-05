@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { isCareOverdue, isWateringOverdue, isFertilizingOverdue, countCareOverdue } from './plant-status';
+import {
+  isCareOverdue,
+  isWateringOverdue,
+  isFertilizingOverdue,
+  countCareOverdue,
+  isWateringDueSoon,
+  isFertilizingDueSoon,
+} from './plant-status';
 
 const TODAY = new Date('2026-08-15T12:00:00');
 
@@ -31,6 +38,40 @@ describe('isWateringOverdue', () => {
   });
 });
 
+describe('isWateringDueSoon', () => {
+  it('returns false when watering_frequency_days is null', () => {
+    expect(isWateringDueSoon({ watering_frequency_days: null, last_watered: '2026-08-14' }, 2, TODAY)).toBe(false);
+  });
+
+  it('returns false when last_watered is null', () => {
+    expect(isWateringDueSoon({ watering_frequency_days: 7, last_watered: null }, 2, TODAY)).toBe(false);
+  });
+
+  it('returns true when due today (until === 0)', () => {
+    // last_watered 7 días atrás, frecuencia 7 -> until = 0
+    expect(isWateringDueSoon({ watering_frequency_days: 7, last_watered: '2026-08-08' }, 2, TODAY)).toBe(true);
+  });
+
+  it('returns true right at the edge of the window (until === daysAhead)', () => {
+    // last_watered 5 días atrás, frecuencia 7 -> until = 2
+    expect(isWateringDueSoon({ watering_frequency_days: 7, last_watered: '2026-08-10' }, 2, TODAY)).toBe(true);
+  });
+
+  it('returns false just outside the window (until === daysAhead + 1)', () => {
+    // last_watered 4 días atrás, frecuencia 7 -> until = 3
+    expect(isWateringDueSoon({ watering_frequency_days: 7, last_watered: '2026-08-11' }, 2, TODAY)).toBe(false);
+  });
+
+  it('returns false when already overdue (until < 0) — not "due soon", already late', () => {
+    // last_watered 8 días atrás, frecuencia 7 -> until = -1
+    expect(isWateringDueSoon({ watering_frequency_days: 7, last_watered: '2026-08-07' }, 2, TODAY)).toBe(false);
+  });
+
+  it('uses a default window of 2 days when daysAhead is omitted', () => {
+    expect(isWateringDueSoon({ watering_frequency_days: 7, last_watered: '2026-08-10' }, undefined, TODAY)).toBe(true);
+  });
+});
+
 describe('isFertilizingOverdue', () => {
   it('returns false when fertilizing_frequency_days is null', () => {
     expect(isFertilizingOverdue({ fertilizing_frequency_days: null, last_fertilized: '2026-08-01' }, TODAY)).toBe(false);
@@ -42,6 +83,26 @@ describe('isFertilizingOverdue', () => {
 
   it('returns true when overdue', () => {
     expect(isFertilizingOverdue({ fertilizing_frequency_days: 30, last_fertilized: '2026-07-01' }, TODAY)).toBe(true);
+  });
+});
+
+describe('isFertilizingDueSoon', () => {
+  it('returns false when fertilizing_frequency_days is null', () => {
+    expect(isFertilizingDueSoon({ fertilizing_frequency_days: null, last_fertilized: '2026-07-20' }, 2, TODAY)).toBe(false);
+  });
+
+  it('returns false when last_fertilized is null', () => {
+    expect(isFertilizingDueSoon({ fertilizing_frequency_days: 30, last_fertilized: null }, 2, TODAY)).toBe(false);
+  });
+
+  it('returns true within the window', () => {
+    // last_fertilized 29 días atrás, frecuencia 30 -> until = 1
+    expect(isFertilizingDueSoon({ fertilizing_frequency_days: 30, last_fertilized: '2026-07-17' }, 2, TODAY)).toBe(true);
+  });
+
+  it('returns false when already overdue', () => {
+    // last_fertilized 31 días atrás, frecuencia 30 -> until = -1
+    expect(isFertilizingDueSoon({ fertilizing_frequency_days: 30, last_fertilized: '2026-07-15' }, 2, TODAY)).toBe(false);
   });
 });
 
