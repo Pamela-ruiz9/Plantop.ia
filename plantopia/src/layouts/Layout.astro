@@ -1,4 +1,6 @@
 ---
+import FeedbackFAB from '../components/FeedbackFAB.astro';
+
 export interface Props {
   title?: string;
   description?: string;
@@ -46,5 +48,6 @@ const {
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen pb-16">
     <slot />
+    <FeedbackFAB />
   </body>
 </html>

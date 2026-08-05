@@ -1,0 +1,529 @@
+---
+/**
+ * FeedbackFAB — botón flotante para reportar problemas/ideas directamente
+ * como un GitHub Issue pre-llenado.
+ *
+ * Adaptado de github.com/ArtemioPadilla/inceptor (FeedbackFAB.astro), sin
+ * dependencias nuevas — Astro puro + script inline, encaja con el stack
+ * de Plantopia (a diferencia del original no hay toggle de idioma ni de
+ * tema claro/oscuro, ya que esta app es solo español y solo oscura).
+ *
+ *   - Modal con tipo/título/descripción
+ *   - Campos extra para bugs: pasos para reproducir + comportamiento esperado
+ *   - Telemetría automática: errores de consola, fetch fallidos, excepciones
+ *   - Badge rojo en el botón cuando se detectan errores
+ *   - Acordeón de diagnósticos (entorno, consola, red) + copiar al portapapeles
+ *   - Detección de duplicados: busca issues abiertos con título similar antes de enviar
+ *   - Abre un GitHub Issue pre-llenado en una pestaña nueva
+ */
+
+const repoSlug =
+  (import.meta.env.PUBLIC_REPO_SLUG as string | undefined) ?? 'Pamela-ruiz9/Plantop.ia';
+const buildSha = import.meta.env.PUBLIC_BUILD_SHA || 'dev';
+const appVersion = import.meta.env.PUBLIC_VERSION || 'dev';
+---
+
+<!-- Botón flotante -->
+<div class="fixed bottom-20 right-4 z-40 h-12 w-12">
+  <button
+    id="fab-report-btn"
+    type="button"
+    aria-label="Reportar un problema"
+    title="Reportar un problema"
+    class="relative flex h-12 w-12 items-center justify-center rounded-full
+           bg-slate-900 text-green-400 shadow-lg ring-1 ring-slate-700
+           transition-all hover:scale-105 hover:bg-slate-800 hover:ring-slate-600 hover:shadow-xl
+           focus:outline-none focus:ring-2 focus:ring-green-500"
+  >
+    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M7.5 8.25h9m-9 3.75h6m-7.5 4.5L4.5 19V5.25A1.25 1.25 0 0 1 5.75 4h12.5A1.25 1.25 0 0 1 19.5 5.25v9.5A1.25 1.25 0 0 1 18.25 16h-9.5L6 18l-1.5-1.5z" />
+    </svg>
+    <span class="sr-only">Reportar un problema</span>
+    <span
+      id="fab-report-badge"
+      aria-label="errores detectados"
+      class="pointer-events-none absolute -right-1 -top-1 hidden h-[18px] min-w-[18px] items-center
+             justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-2 ring-slate-950"
+    ></span>
+  </button>
+</div>
+
+<!-- Modal — centrado vía el comportamiento nativo del <dialog> (inset:0; margin:auto).
+     No intentes anclarlo con fixed/bottom/right: inset:0 gana en los lados sin definir. -->
+<dialog
+  id="fab-report-modal"
+  data-repo={repoSlug}
+  data-build-sha={buildSha}
+  data-app-version={appVersion}
+  class="m-auto max-h-[80vh] w-[min(92vw,540px)] overflow-hidden rounded-xl border border-slate-800
+         bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-black/60"
+>
+  <form method="dialog" class="flex max-h-[88vh] flex-col">
+    <header class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-3">
+      <h2 class="text-base font-semibold">Reportar un problema</h2>
+      <button
+        type="button"
+        id="fab-report-close"
+        aria-label="Cancelar"
+        class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5 transition-colors hover:bg-slate-800"
+      >
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </header>
+
+    <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div>
+        <label for="fab-report-type" class="mb-1 block text-sm font-medium">Tipo</label>
+        <select
+          id="fab-report-type"
+          class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        >
+          <option value="bug">Error</option>
+          <option value="feature">Solicitud de funcionalidad</option>
+          <option value="question">Pregunta</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="fab-report-title" class="mb-1 block text-sm font-medium">Título</label>
+        <input
+          type="text"
+          id="fab-report-title"
+          maxlength="120"
+          placeholder="Resumen corto del problema"
+          class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        />
+      </div>
+
+      <!-- Panel de issues similares — oculto hasta que la detección de duplicados encuentre algo -->
+      <div id="fab-report-similar" class="hidden space-y-2 rounded-lg border border-amber-900 bg-amber-950/40 p-3">
+        <p id="fab-report-similar-label" class="text-xs font-semibold text-amber-300">Problemas similares</p>
+        <ul id="fab-report-similar-list" class="space-y-1 text-xs"></ul>
+        <button
+          type="button"
+          id="fab-report-file-anyway"
+          class="mt-1 text-xs font-medium text-amber-300 underline hover:no-underline"
+        >
+          Reportar de todas formas
+        </button>
+      </div>
+
+      <div>
+        <label for="fab-report-description" class="mb-1 block text-sm font-medium">Descripción</label>
+        <textarea
+          id="fab-report-description"
+          rows="4"
+          placeholder="¿Qué pasó? ¿Qué esperabas?"
+          class="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+        ></textarea>
+      </div>
+
+      <div id="fab-report-bug-fields" class="space-y-4">
+        <div>
+          <label for="fab-report-steps" class="mb-1 block text-sm font-medium">Pasos para reproducir</label>
+          <textarea
+            id="fab-report-steps"
+            rows="3"
+            placeholder={'1. Ir a…\n2. Hacer clic en…\n3. Ver error'}
+            class="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+          ></textarea>
+        </div>
+        <div>
+          <label for="fab-report-expected" class="mb-1 block text-sm font-medium">Comportamiento esperado</label>
+          <textarea
+            id="fab-report-expected"
+            rows="2"
+            placeholder="¿Qué esperabas que pasara?"
+            class="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-green-500"
+          ></textarea>
+        </div>
+      </div>
+
+      <details id="fab-report-diagnostics" class="group">
+        <summary class="flex cursor-pointer select-none items-center gap-2 py-1 text-xs font-medium text-slate-400">
+          <svg class="h-3.5 w-3.5 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+          Mostrar diagnósticos
+          <span id="fab-report-diag-count"
+            class="hidden h-[18px] min-w-[18px] items-center justify-center rounded-full
+                   bg-red-950 px-1 text-[10px] font-bold text-red-300">0</span>
+        </summary>
+        <div class="mt-2 space-y-3">
+          <div>
+            <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Entorno</p>
+            <pre id="fab-report-env" class="max-h-28 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-slate-800 bg-slate-950 p-2 text-xs"></pre>
+          </div>
+          <div>
+            <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Errores de consola</p>
+            <pre id="fab-report-console" class="max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-slate-800 bg-slate-950 p-2 text-xs"></pre>
+          </div>
+          <div>
+            <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Peticiones fallidas</p>
+            <pre id="fab-report-network" class="max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-slate-800 bg-slate-950 p-2 text-xs"></pre>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <footer class="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t border-slate-800 bg-slate-900 px-5 py-3">
+      <button
+        type="button"
+        id="fab-report-copy"
+        title="Copiar diagnósticos"
+        class="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        <span id="fab-report-copy-label">Copiar diagnósticos</span>
+      </button>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          id="fab-report-cancel"
+          class="min-h-[44px] rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium transition-colors hover:border-slate-500"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="fab-report-submit"
+          class="min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+        >
+          Abrir en GitHub
+        </button>
+      </div>
+    </footer>
+  </form>
+</dialog>
+
+<script is:inline>
+(function () {
+  // ── Captura de telemetría (corre una sola vez, al parsear) ────────────
+  var W = window;
+  if (!W.__fab_diag) {
+    var MAX = 30;
+    var diag = { console: [], network: [], errors: [] };
+    W.__fab_diag = diag;
+
+    var origError = console.error.bind(console);
+    var origWarn  = console.warn.bind(console);
+    function captureLog(level, args) {
+      var msg = Array.prototype.map.call(args, function (a) {
+        if (a == null) return String(a);
+        if (a instanceof Error) return a.message + '\n' + (a.stack || '');
+        if (typeof a === 'object') { try { return JSON.stringify(a); } catch(e) { return String(a); } }
+        return String(a);
+      }).join(' ');
+      diag.console.push({ ts: new Date().toISOString(), level: level, msg: msg.slice(0, 500) });
+      if (diag.console.length > MAX) diag.console.shift();
+    }
+    console.error = function () { captureLog('error', arguments); origError.apply(console, arguments); W.__fab_updateBadge && W.__fab_updateBadge(); };
+    console.warn  = function () { captureLog('warn',  arguments); origWarn.apply(console, arguments); };
+
+    W.addEventListener('error', function (ev) {
+      diag.errors.push({ ts: new Date().toISOString(), msg: (ev.message || 'Unknown').slice(0, 300), src: ev.filename ? ev.filename + ':' + ev.lineno : '' });
+      if (diag.errors.length > MAX) diag.errors.shift();
+      W.__fab_updateBadge && W.__fab_updateBadge();
+    });
+    W.addEventListener('unhandledrejection', function (ev) {
+      var r = ev.reason;
+      var msg = r instanceof Error ? r.message + '\n' + (r.stack || '') : String(r || 'Unhandled rejection');
+      diag.errors.push({ ts: new Date().toISOString(), msg: msg.slice(0, 300), src: 'promise' });
+      if (diag.errors.length > MAX) diag.errors.shift();
+      W.__fab_updateBadge && W.__fab_updateBadge();
+    });
+
+    // Nunca guardamos la query string de una URL en los diagnósticos: varias
+    // APIs (ej. Gemini) aceptan la API key como parámetro de URL, y estos
+    // diagnósticos terminan pegados en un GitHub issue público si el usuario
+    // no revisa antes de enviar. El path alcanza para identificar qué falló.
+    function redactUrl(u) {
+      var qIdx = u.indexOf('?');
+      return qIdx === -1 ? u : u.slice(0, qIdx) + '?[redacted]';
+    }
+
+    var origFetch = W.fetch;
+    if (origFetch) {
+      W.fetch = function () {
+        var url = arguments[0];
+        var urlStr = typeof url === 'string' ? url : (url && url.url ? url.url : String(url));
+        var method = (arguments[1] && arguments[1].method) || (typeof url === 'object' && url.method) || 'GET';
+        return origFetch.apply(W, arguments).then(function (res) {
+          if (!res.ok) {
+            diag.network.push({ ts: new Date().toISOString(), method: method.toUpperCase(), url: redactUrl(urlStr).slice(0, 200), status: res.status, statusText: res.statusText || '' });
+            if (diag.network.length > MAX) diag.network.shift();
+            W.__fab_updateBadge && W.__fab_updateBadge();
+          }
+          return res;
+        }, function (err) {
+          diag.network.push({ ts: new Date().toISOString(), method: method.toUpperCase(), url: redactUrl(urlStr).slice(0, 200), status: 0, statusText: err && err.message ? err.message.slice(0, 100) : 'Network error' });
+          if (diag.network.length > MAX) diag.network.shift();
+          W.__fab_updateBadge && W.__fab_updateBadge();
+          throw err;
+        });
+      };
+    }
+  }
+
+  // ── Badge ───────────────────────────────────────────────────────────
+  W.__fab_updateBadge = function () {
+    var badge = document.getElementById('fab-report-badge');
+    if (!badge) return;
+    var diag = W.__fab_diag;
+    var windowErrors = diag.errors ? diag.errors.length : 0;
+    var consoleErrors = diag.console ? diag.console.filter(function(c){ return c.level === 'error'; }).length : 0;
+    var count = windowErrors + consoleErrors;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.classList.remove('hidden');
+      badge.classList.add('flex');
+    } else {
+      badge.classList.add('hidden');
+      badge.classList.remove('flex');
+    }
+  };
+
+  // ── Detección de duplicados ────────────────────────────────────────
+  // Busca en la API de GitHub issues abiertos con título parecido. Se degrada
+  // silenciosamente ante rate-limit (403/429) o error de red — el usuario
+  // sigue pudiendo reportar normalmente.
+  var dupeCache = {};
+  var dupeTimer = null;
+
+  function checkDuplicates(repo, rawTitle, onResults) {
+    var title = rawTitle.trim();
+    if (!title || title.length < 5) { onResults([]); return; }
+    var cacheKey = repo + '\x00' + title.toLowerCase();
+    if (dupeCache[cacheKey] !== undefined) { onResults(dupeCache[cacheKey]); return; }
+    var q = 'repo:' + repo + '+is:issue+is:open+in:title+' + encodeURIComponent(title);
+    var url = 'https://api.github.com/search/issues?q=' + q + '&per_page=3';
+    fetch(url, { headers: { Accept: 'application/vnd.github+json' } })
+      .then(function (res) {
+        if (!res.ok) { dupeCache[cacheKey] = []; onResults([]); return; }
+        return res.json().then(function (data) {
+          var items = (data && Array.isArray(data.items)) ? data.items.slice(0, 3) : [];
+          dupeCache[cacheKey] = items;
+          onResults(items);
+        });
+      })
+      .catch(function () { dupeCache[cacheKey] = []; onResults([]); });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var btn   = document.getElementById('fab-report-btn');
+    var modal = document.getElementById('fab-report-modal');
+    if (!btn || !modal) return;
+
+    // Guard: solo un slug owner/repo verosímil puede llegar a la URL de GitHub
+    // (los valores de dataset son manipulables desde devtools).
+    var repoRaw    = modal.dataset.repo || '';
+    var repo       = /^[\w.-]+\/[\w.-]+$/.test(repoRaw) ? repoRaw : '';
+    var buildSha   = modal.dataset.buildSha || 'dev';
+    var appVersion = modal.dataset.appVersion || 'dev';
+    var noneLabel  = 'Ninguno capturado';
+    var copyLabel  = 'Copiar diagnósticos';
+    var copiedLabel= '¡Copiado!';
+
+    var typeEl    = document.getElementById('fab-report-type');
+    var titleEl   = document.getElementById('fab-report-title');
+    var descEl    = document.getElementById('fab-report-description');
+    var stepsEl   = document.getElementById('fab-report-steps');
+    var expectedEl= document.getElementById('fab-report-expected');
+    var bugFields = document.getElementById('fab-report-bug-fields');
+    var envBlock  = document.getElementById('fab-report-env');
+    var consBlock = document.getElementById('fab-report-console');
+    var netBlock  = document.getElementById('fab-report-network');
+    var diagCount = document.getElementById('fab-report-diag-count');
+    var copyBtn   = document.getElementById('fab-report-copy');
+    var copyLabel2= document.getElementById('fab-report-copy-label');
+    var submitBtn = document.getElementById('fab-report-submit');
+    var cancelBtn = document.getElementById('fab-report-cancel');
+    var closeBtn  = document.getElementById('fab-report-close');
+
+    var similarPanel  = document.getElementById('fab-report-similar');
+    var similarLabel  = document.getElementById('fab-report-similar-label');
+    var similarList   = document.getElementById('fab-report-similar-list');
+    var fileAnywayBtn = document.getElementById('fab-report-file-anyway');
+
+    var dupeAcknowledged = false;
+
+    if (typeEl && bugFields) {
+      typeEl.addEventListener('change', function () {
+        bugFields.style.display = typeEl.value === 'bug' ? '' : 'none';
+      });
+    }
+
+    function showSimilarIssues(items) {
+      if (!similarPanel || !similarList || items.length === 0) return;
+      similarList.innerHTML = '';
+      items.forEach(function (issue) {
+        var li = document.createElement('li');
+        var a = document.createElement('a');
+        a.href = issue.html_url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = '#' + issue.number + ' ' + (issue.title || '').slice(0, 80);
+        a.className = 'block truncate text-amber-300 underline hover:no-underline';
+        li.appendChild(a);
+        similarList.appendChild(li);
+      });
+      if (similarLabel) similarLabel.textContent = 'Problemas similares (' + items.length + ')';
+      similarPanel.classList.remove('hidden');
+    }
+
+    function hideSimilarIssues() {
+      if (similarPanel) similarPanel.classList.add('hidden');
+    }
+
+    if (titleEl && repo) {
+      titleEl.addEventListener('input', function () {
+        dupeAcknowledged = false;
+        hideSimilarIssues();
+        clearTimeout(dupeTimer);
+        dupeTimer = setTimeout(function () {
+          var title = titleEl.value.trim();
+          if (title.length < 5) return;
+          checkDuplicates(repo, title, function (items) {
+            if (items.length > 0 && !dupeAcknowledged) showSimilarIssues(items);
+          });
+        }, 600);
+      });
+    }
+
+    if (fileAnywayBtn) {
+      fileAnywayBtn.addEventListener('click', function () {
+        dupeAcknowledged = true;
+        hideSimilarIssues();
+      });
+    }
+
+    btn.addEventListener('click', function () {
+      dupeAcknowledged = false;
+      hideSimilarIssues();
+      populateDiagnostics();
+      modal.showModal();
+    });
+
+    function closeModal() { modal.close(); }
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+    function populateDiagnostics() {
+      var diag = W.__fab_diag || { console: [], network: [], errors: [] };
+
+      if (envBlock) {
+        envBlock.textContent = JSON.stringify({
+          url: location.href,
+          userAgent: navigator.userAgent,
+          viewport: window.innerWidth + 'x' + window.innerHeight,
+          buildSha: buildSha,
+          version: appVersion,
+          timestamp: new Date().toISOString(),
+        }, null, 2);
+      }
+
+      var consEntries = (diag.console || []).concat((diag.errors || []).map(function(e){ return { level: 'error', ts: e.ts, msg: e.msg + (e.src ? ' @ ' + e.src : '') }; }));
+      if (consBlock) consBlock.textContent = consEntries.length ? consEntries.map(function(c){ return '[' + c.level.toUpperCase() + '] ' + c.ts + '\n' + c.msg; }).join('\n\n') : noneLabel;
+
+      if (netBlock) netBlock.textContent = (diag.network || []).length
+        ? diag.network.map(function(n){ return n.method + ' ' + n.status + ' ' + n.url + '\n' + n.ts; }).join('\n\n')
+        : noneLabel;
+
+      var errorCount = consEntries.filter(function(c){ return c.level === 'error'; }).length + (diag.network || []).length;
+      if (diagCount) {
+        if (errorCount > 0) { diagCount.textContent = String(errorCount); diagCount.classList.remove('hidden'); }
+        else diagCount.classList.add('hidden');
+      }
+    }
+
+    if (copyBtn && copyLabel2) {
+      copyBtn.addEventListener('click', function () {
+        var text = [envBlock, consBlock, netBlock].map(function(el){ return el ? el.textContent : ''; }).join('\n\n---\n\n');
+        function onCopied() {
+          copyLabel2.textContent = copiedLabel;
+          setTimeout(function(){ copyLabel2.textContent = copyLabel; }, 2000);
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(onCopied).catch(function() { fallbackSelect(text); });
+        } else {
+          fallbackSelect(text);
+        }
+        function fallbackSelect(value) {
+          var ta = document.createElement('textarea');
+          ta.value = value;
+          ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          if (copyLabel2) {
+            copyLabel2.textContent = 'Ctrl/Cmd+C para copiar';
+            setTimeout(function(){ copyLabel2.textContent = copyLabel; document.body.removeChild(ta); }, 4000);
+          } else {
+            setTimeout(function(){ document.body.removeChild(ta); }, 4000);
+          }
+        }
+      });
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function () {
+        if (similarPanel && !similarPanel.classList.contains('hidden') && !dupeAcknowledged) {
+          dupeAcknowledged = true;
+          hideSimilarIssues();
+          return;
+        }
+
+        var type    = typeEl ? typeEl.value : 'bug';
+        var title   = titleEl ? titleEl.value.trim() : '';
+        var desc    = descEl  ? descEl.value.trim()  : '';
+        var steps   = stepsEl   ? stepsEl.value.trim()   : '';
+        var expected= expectedEl? expectedEl.value.trim() : '';
+
+        if (!title) { if (titleEl) titleEl.focus(); return; }
+
+        var diag = W.__fab_diag || { console: [], network: [], errors: [] };
+        var consEntries = (diag.console || []).concat((diag.errors || []).map(function(e){ return { level:'error', ts:e.ts, msg:e.msg + (e.src ? ' @ '+e.src : '') }; }));
+        var diagText = '**Entorno**\n```json\n' + JSON.stringify({
+          url: location.href, userAgent: navigator.userAgent,
+          viewport: window.innerWidth + 'x' + window.innerHeight,
+          buildSha: buildSha, version: appVersion,
+          timestamp: new Date().toISOString(),
+        }, null, 2) + '\n```';
+
+        if (consEntries.length) {
+          diagText += '\n\n**Errores de consola**\n```\n' + consEntries.map(function(c){ return '['+c.level.toUpperCase()+'] '+c.ts+'\n'+c.msg; }).join('\n\n').slice(0, 1500) + '\n```';
+        }
+        if ((diag.network||[]).length) {
+          diagText += '\n\n**Peticiones fallidas**\n```\n' + diag.network.map(function(n){ return n.method+' '+n.status+' '+n.url; }).join('\n').slice(0, 800) + '\n```';
+        }
+
+        var body = desc;
+        if (type === 'bug') {
+          if (steps)    body += '\n\n**Pasos para reproducir**\n' + steps;
+          if (expected) body += '\n\n**Comportamiento esperado**\n' + expected;
+        }
+        body += '\n\n<details>\n<summary>Diagnósticos</summary>\n\n' + diagText + '\n</details>';
+
+        var labelMap = { bug: 'bug', feature: 'enhancement', question: 'question' };
+        var params = new URLSearchParams({
+          title: title,
+          body: body.slice(0, 6500),
+          labels: labelMap[type] || 'bug',
+        });
+        if (!repo) { console.warn('FeedbackFAB: PUBLIC_REPO_SLUG inválido o ausente, no se puede abrir el issue.'); return; }
+        window.open('https://github.com/' + repo + '/issues/new?' + params.toString(), '_blank', 'noopener,noreferrer');
+        closeModal();
+      });
+    }
+
+    W.__fab_updateBadge();
+  });
+})();
+</script>
