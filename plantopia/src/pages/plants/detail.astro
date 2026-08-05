@@ -91,7 +91,7 @@ import '../../styles/global.css';
           </button>
         </form>
         <p id="event-message" class="hidden mb-3 rounded-md px-3 py-2 text-sm"></p>
-        <ul id="timeline-list" class="flex flex-col gap-2"></ul>
+        <ul id="timeline-list" class="flex flex-col"></ul>
         <p id="timeline-empty" class="hidden text-sm text-slate-500">Sin eventos ni cambios de fase registrados todavía.</p>
       </section>
 
@@ -455,27 +455,41 @@ Notas: ${plant.notes ?? 'ninguna'}`;
       | { kind: 'event'; sortDate: string; event: PlantEvent }
       | { kind: 'phase'; sortDate: string; log: PlantPhaseLog };
 
-    function renderTimelineItem(item: TimelineItem): string {
+    // Marcador (ícono en círculo) + segmento de línea vertical que conecta con el próximo ítem.
+    // El segmento se omite en el último ítem para que la línea no siga "colgando" al final.
+    function timelineMarker(icon: string, isLast: boolean): string {
+      return `
+        <div class="flex flex-col items-center">
+          <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm ring-4 ring-slate-950">${icon}</span>
+          ${isLast ? '' : '<span class="mt-1 w-0.5 flex-1 bg-slate-800"></span>'}
+        </div>`;
+    }
+
+    function renderTimelineItem(item: TimelineItem, isLast: boolean): string {
       if (item.kind === 'event') {
         const ev = item.event;
         return `
-        <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
-          <div>
-            <span class="mr-1">${EVENT_ICONS[ev.event_type]}</span>
-            <span class="font-medium text-slate-200">${EVENT_LABELS[ev.event_type]}</span>
-            <span class="ml-2 text-slate-500">${escapeHtml(ev.event_date)}</span>
-            ${ev.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(ev.note)}</p>` : ''}
+        <li class="flex gap-3">
+          ${timelineMarker(EVENT_ICONS[ev.event_type], isLast)}
+          <div class="flex flex-1 items-center justify-between gap-2 pb-4">
+            <div>
+              <span class="font-medium text-slate-200">${EVENT_LABELS[ev.event_type]}</span>
+              <span class="ml-2 text-slate-500">${escapeHtml(ev.event_date)}</span>
+              ${ev.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(ev.note)}</p>` : ''}
+            </div>
+            <button data-event-id="${ev.id}" class="delete-event shrink-0 text-xs text-red-400 hover:text-red-300">Borrar</button>
           </div>
-          <button data-event-id="${ev.id}" class="delete-event shrink-0 text-xs text-red-400 hover:text-red-300">Borrar</button>
         </li>`;
       }
       const log = item.log;
       return `
-        <li class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
-          <span class="mr-1">${PHASE_ICONS[log.phase]}</span>
-          <span class="font-medium text-slate-200">${PHASE_LABELS[log.phase]}</span>
-          <span class="ml-2 text-slate-500">${escapeHtml(log.started_at)} → ${escapeHtml(log.ended_at ?? 'en curso')}</span>
-          ${log.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(log.note)}</p>` : ''}
+        <li class="flex gap-3">
+          ${timelineMarker(PHASE_ICONS[log.phase], isLast)}
+          <div class="flex-1 pb-4">
+            <span class="font-medium text-slate-200">${PHASE_LABELS[log.phase]}</span>
+            <span class="ml-2 text-slate-500">${escapeHtml(log.started_at)} → ${escapeHtml(log.ended_at ?? 'en curso')}</span>
+            ${log.note ? `<p class="mt-0.5 text-xs text-slate-400">${escapeHtml(log.note)}</p>` : ''}
+          </div>
         </li>`;
     }
 
@@ -500,7 +514,9 @@ Notas: ${plant.notes ?? 'ninguna'}`;
       }
       emptyEl.classList.add('hidden');
 
-      listEl.innerHTML = items.map(renderTimelineItem).join('');
+      listEl.innerHTML = items
+        .map((item, i) => renderTimelineItem(item, i === items.length - 1))
+        .join('');
 
       listEl.querySelectorAll<HTMLButtonElement>('.delete-event').forEach((btn) => {
         btn.addEventListener('click', async () => {
