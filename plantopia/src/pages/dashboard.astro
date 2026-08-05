@@ -18,6 +18,11 @@ import '../styles/global.css';
       <section class="grid grid-cols-2 gap-3" id="stats-grid"></section>
 
       <section>
+        <h2 class="mb-2 text-sm font-medium text-slate-300">Salud general</h2>
+        <div id="health-breakdown" class="flex flex-wrap gap-2 text-sm"></div>
+      </section>
+
+      <section>
         <h2 class="mb-2 text-sm font-medium text-slate-300">Por fase</h2>
         <div id="phase-breakdown" class="flex flex-wrap gap-2 text-sm text-slate-300"></div>
       </section>
@@ -36,13 +41,21 @@ import '../styles/global.css';
     import { requireAuth } from '../lib/session';
     import { listPlants } from '../lib/plants';
     import { isCareOverdue, isWateringOverdue, isFertilizingOverdue } from '../lib/plant-status';
-    import { PHASE_LABELS, PHASE_ICONS, GROWTH_PHASES } from '../lib/labels';
+    import {
+      PHASE_LABELS,
+      PHASE_ICONS,
+      GROWTH_PHASES,
+      HEALTH_LABELS,
+      HEALTH_COLORS,
+      HEALTH_STATUSES,
+    } from '../lib/labels';
     import type { PlantWithCatalog } from '../types/catalog';
 
     const loadingEl = document.getElementById('loading')!;
     const errorEl = document.getElementById('error')!;
     const contentEl = document.getElementById('content')!;
     const statsGrid = document.getElementById('stats-grid')!;
+    const healthBreakdown = document.getElementById('health-breakdown')!;
     const phaseBreakdown = document.getElementById('phase-breakdown')!;
     const attentionList = document.getElementById('attention-list')!;
     const attentionEmpty = document.getElementById('attention-empty')!;
@@ -75,6 +88,13 @@ import '../styles/global.css';
           <p class="text-xs ${attentionCard.label}">Necesitan atención</p>
         </div>
       `;
+    }
+
+    function renderHealthBreakdown(plants: PlantWithCatalog[]) {
+      healthBreakdown.innerHTML = HEALTH_STATUSES.map((status) => {
+        const count = plants.filter((p) => (p.health_status ?? 'healthy') === status).length;
+        return `<span class="rounded-full border px-3 py-1 text-xs ${HEALTH_COLORS[status]}">${HEALTH_LABELS[status]}: ${count}</span>`;
+      }).join('');
     }
 
     function renderPhaseBreakdown(plants: PlantWithCatalog[]) {
@@ -119,6 +139,7 @@ import '../styles/global.css';
         contentEl.classList.add('flex');
 
         renderStats(plants.length, attention.length);
+        renderHealthBreakdown(plants);
         renderPhaseBreakdown(plants);
         renderAttentionList(attention);
       } catch (err) {
