@@ -96,7 +96,7 @@ import '../styles/global.css';
     import { redirectIfAuthed } from '../lib/session';
 
     const base = import.meta.env.BASE_URL;
-    redirectIfAuthed(base);
+    redirectIfAuthed(`${base}dashboard`);
 
     const tabLogin = document.getElementById('tab-login') as HTMLButtonElement;
     const tabSignup = document.getElementById('tab-signup') as HTMLButtonElement;
@@ -138,7 +138,7 @@ import '../styles/global.css';
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: window.location.origin + base,
+            redirectTo: window.location.origin + `${base}dashboard`,
           },
         });
         if (error) throw error;
@@ -165,7 +165,7 @@ import '../styles/global.css';
         if (mode === 'login') {
           const { error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
-          window.location.href = base;
+          window.location.href = `${base}dashboard`;
         } else {
           const { error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;
