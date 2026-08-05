@@ -1,12 +1,13 @@
 ---
 // plantopia/src/components/BottomNav.astro
 interface Props {
-  active: 'collection' | 'identify' | 'settings';
+  active: 'dashboard' | 'collection' | 'identify' | 'settings';
 }
 const { active } = Astro.props;
 const base = import.meta.env.BASE_URL;
 
 const tabs = [
+  { id: 'dashboard',  href: `${base}dashboard`,    icon: '🏠', label: 'Inicio'       },
   { id: 'collection', href: base,                  icon: '🌿', label: 'Mi colección' },
   { id: 'identify',   href: `${base}identify`,     icon: '🔍', label: 'Identificar'  },
   { id: 'settings',  href: `${base}settings`,     icon: '⚙️', label: 'Ajustes'      },

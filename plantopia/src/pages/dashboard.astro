@@ -1,0 +1,134 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BottomNav from '../components/BottomNav.astro';
+import '../styles/global.css';
+---
+
+<Layout title="Plantopia — Inicio">
+  <main class="mx-auto min-h-screen max-w-3xl px-4 py-8">
+    <header class="mb-6 flex items-center gap-2">
+      <span class="text-2xl">🏠</span>
+      <h1 class="text-xl font-semibold">Inicio</h1>
+    </header>
+
+    <div id="loading" class="py-12 text-center text-sm text-slate-500">Cargando resumen…</div>
+    <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
+
+    <div id="content" class="hidden flex-col gap-6">
+      <section class="grid grid-cols-2 gap-3" id="stats-grid"></section>
+
+      <section>
+        <h2 class="mb-2 text-sm font-medium text-slate-300">Por fase</h2>
+        <div id="phase-breakdown" class="flex flex-wrap gap-2 text-sm text-slate-300"></div>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-sm font-medium text-slate-300">⚠️ Necesitan atención</h2>
+        <ul id="attention-list" class="flex flex-col gap-2"></ul>
+        <p id="attention-empty" class="hidden text-sm text-slate-500">Nada pendiente — todo al día 🎉</p>
+      </section>
+    </div>
+  </main>
+
+  <BottomNav active="dashboard" />
+
+  <script>
+    import { requireAuth } from '../lib/session';
+    import { listPlants } from '../lib/plants';
+    import { isCareOverdue, isWateringOverdue, isFertilizingOverdue } from '../lib/plant-status';
+    import { PHASE_LABELS, PHASE_ICONS, GROWTH_PHASES } from '../lib/labels';
+    import type { PlantWithCatalog } from '../types/catalog';
+
+    const loadingEl = document.getElementById('loading')!;
+    const errorEl = document.getElementById('error')!;
+    const contentEl = document.getElementById('content')!;
+    const statsGrid = document.getElementById('stats-grid')!;
+    const phaseBreakdown = document.getElementById('phase-breakdown')!;
+    const attentionList = document.getElementById('attention-list')!;
+    const attentionEmpty = document.getElementById('attention-empty')!;
+
+    function escapeHtml(str: string): string {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function overdueReasons(plant: PlantWithCatalog): string {
+      const reasons: string[] = [];
+      if (isWateringOverdue(plant)) reasons.push('💧 riego');
+      if (isFertilizingOverdue(plant)) reasons.push('🌿 fertilización');
+      return reasons.join(' · ');
+    }
+
+    function renderStats(total: number, attentionCount: number) {
+      const attentionCard = attentionCount > 0
+        ? { border: 'border-amber-900', bg: 'bg-amber-950', text: 'text-amber-300', label: 'text-amber-400' }
+        : { border: 'border-slate-800', bg: 'bg-slate-900', text: 'text-slate-100', label: 'text-slate-500' };
+
+      statsGrid.innerHTML = `
+        <div class="rounded-xl border border-slate-800 bg-slate-900 p-4 text-center">
+          <p class="text-2xl font-semibold text-slate-100">${total}</p>
+          <p class="text-xs text-slate-500">Plantas</p>
+        </div>
+        <div class="rounded-xl border ${attentionCard.border} ${attentionCard.bg} p-4 text-center">
+          <p class="text-2xl font-semibold ${attentionCard.text}">${attentionCount}</p>
+          <p class="text-xs ${attentionCard.label}">Necesitan atención</p>
+        </div>
+      `;
+    }
+
+    function renderPhaseBreakdown(plants: PlantWithCatalog[]) {
+      phaseBreakdown.innerHTML = GROWTH_PHASES.map((phase) => {
+        const count = plants.filter((p) => p.current_phase === phase).length;
+        return `<span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-1">${PHASE_ICONS[phase]} ${PHASE_LABELS[phase]}: ${count}</span>`;
+      }).join('');
+    }
+
+    function renderAttentionList(attention: PlantWithCatalog[]) {
+      if (attention.length === 0) {
+        attentionList.innerHTML = '';
+        attentionEmpty.classList.remove('hidden');
+        return;
+      }
+      attentionEmpty.classList.add('hidden');
+      const base = import.meta.env.BASE_URL;
+      attentionList.innerHTML = attention
+        .map(
+          (plant) => `
+        <a href="${base}plants/detail?id=${plant.id}" class="flex items-center justify-between gap-2 rounded-lg border border-amber-900 bg-amber-950/30 px-3 py-2 text-sm transition hover:border-amber-700">
+          <div>
+            <span class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</span>
+            <span class="ml-2 text-xs text-amber-400">${overdueReasons(plant)}</span>
+          </div>
+          <span class="text-amber-400">→</span>
+        </a>`
+        )
+        .join('');
+    }
+
+    async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+
+      try {
+        const plants = await listPlants(user.id);
+        const attention = plants.filter((p) => isCareOverdue(p));
+
+        loadingEl.classList.add('hidden');
+        contentEl.classList.remove('hidden');
+        contentEl.classList.add('flex');
+
+        renderStats(plants.length, attention.length);
+        renderPhaseBreakdown(plants);
+        renderAttentionList(attention);
+      } catch (err) {
+        loadingEl.classList.add('hidden');
+        errorEl.classList.remove('hidden');
+        errorEl.textContent =
+          err instanceof Error ? `Error al cargar: ${err.message}` : 'Error al cargar el resumen.';
+      }
+    }
+
+    init();
+  </script>
+</Layout>
