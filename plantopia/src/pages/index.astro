@@ -54,7 +54,7 @@ import '../styles/global.css';
   <script>
     import { requireAuth } from '../lib/session';
     import { listPlants } from '../lib/plants';
-    import { isCareOverdue } from '../lib/plant-status';
+    import { isCareOverdue, countCareOverdue } from '../lib/plant-status';
     import {
       HEALTH_LABELS,
       HEALTH_COLORS,
@@ -124,6 +124,22 @@ import '../styles/global.css';
       return div.innerHTML;
     }
 
+    // Badging API (soportada en Chromium/PWA instalada). No hay tipos en lib.dom.d.ts todavía.
+    interface NavigatorWithBadge extends Navigator {
+      setAppBadge?: (count?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    }
+
+    function updateAppBadge(overdueCount: number) {
+      const nav = navigator as NavigatorWithBadge;
+      if (!nav.setAppBadge || !nav.clearAppBadge) return;
+      if (overdueCount > 0) {
+        nav.setAppBadge(overdueCount).catch(() => {});
+      } else {
+        nav.clearAppBadge().catch(() => {});
+      }
+    }
+
     let allPlants: PlantWithCatalog[] = [];
 
     function applyFilters() {
@@ -159,6 +175,7 @@ import '../styles/global.css';
       try {
         allPlants = await listPlants(user.id);
         loadingEl.classList.add('hidden');
+        updateAppBadge(countCareOverdue(allPlants));
 
         if (allPlants.length === 0) {
           emptyEl.classList.remove('hidden');

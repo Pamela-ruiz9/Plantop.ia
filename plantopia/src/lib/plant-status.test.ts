@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isCareOverdue, isWateringOverdue, isFertilizingOverdue } from './plant-status';
+import { isCareOverdue, isWateringOverdue, isFertilizingOverdue, countCareOverdue } from './plant-status';
 
 const TODAY = new Date('2026-08-15T12:00:00');
 
@@ -79,5 +79,32 @@ describe('isCareOverdue', () => {
       last_fertilized: null,
     };
     expect(isCareOverdue(plant, TODAY)).toBe(false);
+  });
+});
+
+describe('countCareOverdue', () => {
+  const overdue = {
+    watering_frequency_days: 7,
+    last_watered: '2026-08-01',
+    fertilizing_frequency_days: 30,
+    last_fertilized: '2026-08-01',
+  };
+  const notOverdue = {
+    watering_frequency_days: 7,
+    last_watered: '2026-08-15',
+    fertilizing_frequency_days: 30,
+    last_fertilized: '2026-08-01',
+  };
+
+  it('returns 0 for an empty list', () => {
+    expect(countCareOverdue([], TODAY)).toBe(0);
+  });
+
+  it('returns 0 when no plant is overdue', () => {
+    expect(countCareOverdue([notOverdue, notOverdue], TODAY)).toBe(0);
+  });
+
+  it('counts only the overdue plants', () => {
+    expect(countCareOverdue([overdue, notOverdue, overdue], TODAY)).toBe(2);
   });
 });

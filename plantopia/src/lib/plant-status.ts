@@ -30,3 +30,10 @@ export function isFertilizingOverdue(plant: FertilizingInfo, today: Date = new D
 export function isCareOverdue(plant: WateringInfo & FertilizingInfo, today: Date = new Date()): boolean {
   return isWateringOverdue(plant, today) || isFertilizingOverdue(plant, today);
 }
+
+export function countCareOverdue(
+  plants: Array<WateringInfo & FertilizingInfo>,
+  today: Date = new Date()
+): number {
+  return plants.filter((plant) => isCareOverdue(plant, today)).length;
+}
