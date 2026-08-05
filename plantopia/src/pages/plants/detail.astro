@@ -457,6 +457,8 @@ Notas: ${plant.notes ?? 'ninguna'}`;
 
     // Marcador (ícono en círculo) + segmento de línea vertical que conecta con el próximo ítem.
     // El segmento se omite en el último ítem para que la línea no siga "colgando" al final.
+    // Nota: #timeline-list NO debe tener `gap` entre <li> — el espaciado vertical lo da el
+    // `pb-4` de cada ítem, no un gap del contenedor. Un gap ahí cortaría la línea visualmente.
     function timelineMarker(icon: string, isLast: boolean): string {
       return `
         <div class="flex flex-col items-center">
