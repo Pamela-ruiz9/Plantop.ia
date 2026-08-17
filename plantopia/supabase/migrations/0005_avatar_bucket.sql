@@ -1,0 +1,4 @@
+-- supabase/migrations/0005_avatar_bucket.sql
+-- Storage bucket para fotos de perfil (crear vía dashboard o CLI aparte,
+-- mismo criterio que "plant-photos" en 0001_init.sql — no hay SQL que lo cree)
+-- Bucket sugerido: "avatar-photos", público de lectura, escritura autenticada
