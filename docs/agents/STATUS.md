@@ -2,7 +2,7 @@
 
 > Documento de referencia para agentes de IA (y para Pame) sobre qué existe hoy en Plantopia y qué queda pendiente. Se actualiza a medida que el proyecto avanza — no es un changelog histórico, es una foto del estado actual.
 
-**Última actualización:** 2026-08-05
+**Última actualización:** 2026-08-16
 **Stack:** Astro 7 (`output: static`) + TypeScript 5.8 + Supabase (Postgres + Auth + Storage) + Tailwind v4 + Vitest 4. Deploy a GitHub Pages vía GitHub Actions.
 
 ---
@@ -40,11 +40,18 @@
   - Desglose por fase.
   - Lista "Necesitan atención" (riego/fertilización ya atrasados) y lista "Vencen pronto" (vencen en los próximos 2 días, mutuamente excluyente con la anterior — una planta nunca aparece en ambas), ambas con miniatura de foto.
 
+### Perfil de usuario y sesión
+- **Dashboard**: fila de resumen clickeable arriba de las stats — avatar/inicial, nombre para mostrar, método de acceso (Google / email y contraseña) — navega a `/settings`.
+- **Ajustes → Cuenta**: avatar editable (sube inmediatamente al elegir archivo), nombre para mostrar editable con botón "Guardar" separado, y detalle de sesión de solo lectura (método de acceso, miembro desde, último acceso).
+- `lib/user-display.ts` (helpers puros de lectura) y `lib/profile.ts` (mutaciones: `updateDisplayName`, `uploadAvatarPhoto`) — mismo patrón de upload-devuelve-URL que `uploadPlantPhoto` en `lib/plants.ts`.
+- Bucket `avatar-photos` documentado en `supabase/migrations/0005_avatar_bucket.sql` — **falta crearlo a mano** en el dashboard de Supabase (Storage → New bucket → `avatar-photos`, público de lectura) para que la subida real de avatar funcione; sin esto, sigue siendo correcto en tests pero falla en producción hasta crearlo.
+- Fuera de alcance (explícito en el spec): amigos/perfiles públicos, cambio de email/contraseña, borrar cuenta, crop de foto.
+
 ### Feedback / soporte
 - **FeedbackFAB**: botón flotante en todas las páginas que abre un GitHub Issue pre-llenado con descripción + diagnósticos automáticos (errores de consola, peticiones fallidas, entorno), con detección de duplicados contra issues abiertos. Sin dependencias nuevas, sin token de GitHub — abre la página de creación de issue de GitHub, no escribe directo vía API.
 
 ### Calidad de código
-- 101 tests unitarios (Vitest) sobre `lib/*.ts` — ninguna página `.astro` tiene tests, es la convención establecida del repo.
+- 127 tests unitarios (Vitest) sobre `lib/*.ts` — ninguna página `.astro` tiene tests, es la convención establecida del repo.
 - **Lección aprendida y documentada:** para verificar tipos hay que usar `npm run check` (Astro's own type checker), **nunca solo** `npx tsc --noEmit -p .` — este último no detecta errores reales de narrowing dentro de scripts embebidos en `.astro` y causó dos deploys rotos en agosto 2026. Todo plan/task nuevo debe usar `npm run check` como paso de verificación obligatorio.
 
 ---
@@ -54,7 +61,7 @@
 Ordenado por prioridad aproximada, no por fecha.
 
 ### Prioridad media
-- **Consistencia de seguridad en fotos**: `dashboard.astro` valida el esquema de la URL (`startsWith('https://')`) antes de mostrar una foto, pero `index.astro` no lo hace (solo tiene `escapeHtml`, sin chequeo de esquema). Además, `escapeHtml` en los tres lugares que resuelven fotos (`index.astro`, `detail.astro`, `dashboard.astro`, `edit.astro`) no escapa comillas, lo cual en teoría podría romper el atributo `src="..."` si una URL contuviera un `"` — riesgo bajo (self-XSS, ya que `photo_url` se genera server-side a partir del `userId`/`plantId` del dueño de la planta), pero valdría la pena unificar esta lógica en un solo helper compartido (`lib/photo-display.ts` o similar) y cerrar el gap en los cuatro lugares a la vez.
+- **Consistencia de seguridad en fotos**: `dashboard.astro` valida el esquema de la URL (`startsWith('https://')`) antes de mostrar una foto, pero `index.astro` no lo hace (solo tiene `escapeHtml`, sin chequeo de esquema). Además, `escapeHtml` está duplicada byte-a-byte en **cinco** archivos ahora (`index.astro`, `detail.astro`, `dashboard.astro`, `edit.astro`, y desde 2026-08-16 también `settings.astro` para el avatar) y no escapa comillas, lo cual en teoría podría romper el atributo `src="..."` si una URL contuviera un `"` — riesgo bajo (self-XSS, ya que tanto `photo_url` como `avatar_url` se generan a partir de datos del propio usuario/dueño), pero con cinco copias vale la pena unificar esta lógica en un solo helper compartido (`lib/dom.ts` o similar) y cerrar el gap en todos los lugares a la vez.
 - **Confusión reportada con Gemini "gratis"**: la usuaria mencionó que al elegir Gemini en Ajustes, la app le sigue pidiendo un API key "normal" sin explicarle los pasos concretos para conseguir uno gratis. El help link ya apunta a Google AI Studio, pero puede no ser suficientemente guiado (ej. no aclara que no hace falta tarjeta de crédito, no muestra pasos dentro de la app). Quedó sin resolver — la usuaria pidió dejarlo así por ahora ("olvidalo, todo bien"), pero vale la pena revisarlo si vuelve a surgir.
 
 ### Prioridad baja / explícitamente pospuesto
