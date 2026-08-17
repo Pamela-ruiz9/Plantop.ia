@@ -2,6 +2,8 @@
 import Layout from '../layouts/Layout.astro';
 import BottomNav from '../components/BottomNav.astro';
 import '../styles/global.css';
+
+const base = import.meta.env.BASE_URL;
 ---
 
 <Layout title="Plantopia — Inicio">
@@ -10,6 +12,18 @@ import '../styles/global.css';
       <span class="text-2xl">🏠</span>
       <h1 class="text-xl font-semibold">Inicio</h1>
     </header>
+
+    <a
+      href={`${base}settings`}
+      class="mb-6 flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 p-3 transition hover:border-slate-600"
+    >
+      <div id="user-avatar" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-medium text-slate-300"></div>
+      <div class="flex-1">
+        <p id="user-name" class="text-sm font-medium text-slate-100"></p>
+        <p id="user-provider" class="text-xs text-slate-500"></p>
+      </div>
+      <span class="text-slate-500">→</span>
+    </a>
 
     <div id="loading" class="py-12 text-center text-sm text-slate-500">Cargando resumen…</div>
     <div id="error" class="hidden rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-300"></div>
@@ -47,6 +61,14 @@ import '../styles/global.css';
     import { requireAuth } from '../lib/session';
     import { listPlants } from '../lib/plants';
     import {
+      getDisplayName,
+      getAvatarUrl,
+      getInitial,
+      getProvider,
+      getProviderLabel,
+      type SessionUser,
+    } from '../lib/user-display';
+    import {
       isCareOverdue,
       isCareDueSoon,
       isWateringOverdue,
@@ -74,11 +96,23 @@ import '../styles/global.css';
     const attentionEmpty = document.getElementById('attention-empty')!;
     const dueSoonList = document.getElementById('due-soon-list')!;
     const dueSoonEmpty = document.getElementById('due-soon-empty')!;
+    const userAvatarEl = document.getElementById('user-avatar')!;
+    const userNameEl = document.getElementById('user-name')!;
+    const userProviderEl = document.getElementById('user-provider')!;
 
     function escapeHtml(str: string): string {
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    function renderUserSummary(user: SessionUser) {
+      const avatarUrl = getAvatarUrl(user);
+      userAvatarEl.innerHTML = avatarUrl
+        ? `<img src="${escapeHtml(avatarUrl)}" alt="" class="h-8 w-8 rounded-full object-cover" />`
+        : escapeHtml(getInitial(user));
+      userNameEl.textContent = getDisplayName(user);
+      userProviderEl.textContent = getProviderLabel(getProvider(user));
     }
 
     function overdueReasons(plant: PlantWithCatalog): string {
@@ -190,6 +224,7 @@ import '../styles/global.css';
     async function init() {
       const user = await requireAuth();
       if (!user) return;
+      renderUserSummary(user);
 
       try {
         const plants = await listPlants(user.id);
