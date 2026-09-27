@@ -28,6 +28,12 @@ export const HEALTH_COLORS: Record<HealthStatus, string> = {
   sick: 'bg-red-950 text-red-300 border-red-900',
 };
 
+export const HEALTH_STROKE: Record<HealthStatus, string> = {
+  healthy: '#4ade80', // green-400
+  needs_attention: '#fbbf24', // amber-400
+  sick: '#f87171', // red-400
+};
+
 export const LIGHT_LABELS: Record<LightType, string> = {
   direct: 'Luz directa',
   bright_indirect: 'Indirecta brillante',
