@@ -2,7 +2,7 @@
 
 > Documento de referencia para agentes de IA (y para Pame) sobre qué existe hoy en Plantopia y qué queda pendiente. Se actualiza a medida que el proyecto avanza — no es un changelog histórico, es una foto del estado actual.
 
-**Última actualización:** 2026-08-16
+**Última actualización:** 2026-09-27
 **Stack:** Astro 7 (`output: static`) + TypeScript 5.8 + Supabase (Postgres + Auth + Storage) + Tailwind v4 + Vitest 4. Deploy a GitHub Pages vía GitHub Actions.
 
 ---
@@ -32,13 +32,13 @@
 - **Nota de seguridad ya resuelta:** la key de Gemini se manda por header (`x-goog-api-key`), no por query string — evita que quede expuesta en herramientas de diagnóstico o logs. Ver `lib/ai.ts`.
 
 ### Colección (`/`) y Dashboard (`/dashboard`)
-- Colección: tarjetas con foto, ícono de fase, badge "⚠️ Necesita atención". Filtro por fase y por "necesita atención".
+- **Colección**: grid siempre a 2 columnas (también en celular, no solo desde `sm:`). Tarjeta foto-protagonista estilo Pinterest/Instagram — la foto ocupa casi toda la tarjeta (`aspect-[4/5]`), nombre + ícono de fase como overlay con degradado abajo, badge ⚠️ circular sobre la foto (no en el pie) si la planta necesita atención. La tarjeta ya no muestra especie, ubicación, badge de salud con texto ni fecha de último riego — se sacrificó ese detalle a cambio de densidad visual; sigue disponible en el detalle de la planta. Filtro por fase y por "necesita atención" sin cambios.
 - Badge en el ícono de la app (Badging API) mostrando cuántas plantas necesitan atención — se actualiza al abrir la colección.
 - **Dashboard** (pestaña "🏠 Inicio", primera en la barra inferior):
-  - 3 tarjetas de stat: total de plantas, necesitan atención (ámbar), vencen pronto (celeste).
-  - Salud general: conteo por estado (sana / necesita atención / enferma).
-  - Desglose por fase.
-  - Lista "Necesitan atención" (riego/fertilización ya atrasados) y lista "Vencen pronto" (vencen en los próximos 2 días, mutuamente excluyente con la anterior — una planta nunca aparece en ambas), ambas con miniatura de foto.
+  - 3 tarjetas de stat: total de plantas, necesitan atención (ámbar), vencen pronto (celeste) — sin cambios, siguen con el umbral fijo de 2 días de `isCareDueSoon`.
+  - **Salud general**: dona SVG (sin librería de gráficos, técnica `stroke-dasharray`/`stroke-dashoffset` con `HEALTH_STROKE` en `lib/labels.ts`) + leyenda con conteos.
+  - **Por fase**: barras horizontales de porcentaje (antes eran chips de texto).
+  - **🗓️ Agenda de cuidados**: reemplaza las listas separadas de "Necesitan atención"/"Vencen pronto" por una sola vista agrupada — Atrasado / Hoy / Esta semana (ventana de 7 días, independiente del umbral de 2 días de las tarjetas de stat; ver `lib/dashboard-agenda.ts`, función `groupPlantsByAgenda`). Cada fila tiene botones de **acción rápida** (💧 riego / 🌿 fertilización) que registran el cuidado sin salir del dashboard, reutilizando `addPlantEvent` de `lib/plants.ts` (event delegation sobre el contenedor, no listeners por botón — sobrevive a los re-renders de `innerHTML`). Fallo de red al usar una acción rápida: se re-habilita el botón y se muestra un banner de error (`#error`) con scroll automático hacia él, ya que el usuario suele estar scrolleado hacia abajo cuando toca el botón.
 
 ### Perfil de usuario y sesión
 - **Dashboard**: fila de resumen clickeable arriba de las stats — avatar/inicial, nombre para mostrar, método de acceso (Google / email y contraseña) — navega a `/settings`.
@@ -51,7 +51,7 @@
 - **FeedbackFAB**: botón flotante en todas las páginas que abre un GitHub Issue pre-llenado con descripción + diagnósticos automáticos (errores de consola, peticiones fallidas, entorno), con detección de duplicados contra issues abiertos. Sin dependencias nuevas, sin token de GitHub — abre la página de creación de issue de GitHub, no escribe directo vía API.
 
 ### Calidad de código
-- 127 tests unitarios (Vitest) sobre `lib/*.ts` — ninguna página `.astro` tiene tests, es la convención establecida del repo.
+- 138 tests unitarios (Vitest) sobre `lib/*.ts` — ninguna página `.astro` tiene tests, es la convención establecida del repo.
 - **Lección aprendida y documentada:** para verificar tipos hay que usar `npm run check` (Astro's own type checker), **nunca solo** `npx tsc --noEmit -p .` — este último no detecta errores reales de narrowing dentro de scripts embebidos en `.astro` y causó dos deploys rotos en agosto 2026. Todo plan/task nuevo debe usar `npm run check` como paso de verificación obligatorio.
 
 ---
@@ -68,6 +68,18 @@ Ordenado por prioridad aproximada, no por fecha.
 - **Alertas de fase esperada por especie/temporada**: única pieza del roadmap original marcada desde el inicio como "opcional, fase posterior". Necesitaría una tabla de referencia de temporada esperada por especie que hoy no existe.
 - **Dominio propio** (`plantopia.mx` estaba disponible, nunca comprado) y **offline-first con Dexie** (mencionados en el plan de migración original de julio 2026, nunca retomados — el service worker actual ya cubre bastante del caso de uso offline sin necesitar IndexedDB adicional para los datos).
 - **Duplicación menor**: `renderAttentionList`/`renderDueSoonList` en `dashboard.astro` son casi idénticas (mismo shape, distinto color y función de motivo). Evaluado y aceptado como está — con solo 2 instancias no justifica una abstracción extra (regla de tres: extraer si aparece una tercera lista temática).
+
+---
+
+## 🗂️ Backlog (pedido por Pame, 2026-09-27)
+
+Sin priorizar todavía — a definir orden con Pame.
+
+- ~~Mejorar UI/UX de la colección (grid 2 columnas)~~ y ~~inicio/dashboard más interactivo~~ → **hechos el 2026-09-27** (ver spec `docs/superpowers/specs/2026-09-27-collection-dashboard-uiux-design.md` y plan `docs/superpowers/plans/2026-09-27-collection-dashboard-uiux.md`; detalle en la sección de Colección/Dashboard arriba).
+
+1. **Ampliar catálogo con orquídeas** (varias especies: ej. Phalaenopsis, Cattleya, Dendrobium, Vanda). El `CHECK` de `plant_type` en `0002_plant_catalog.sql` no incluye `'orquídea'` — hoy solo admite `suculenta, tropical, cactus, helecho, trepadora, árbol, otra`. Hace falta una migración que agregue el valor al enum antes de sembrar las especies (seguir el patrón de `0003_plant_catalog_seed.sql`), + fotos de referencia (Wikimedia Commons, como el resto del catálogo).
+2. **Evitar que Supabase pause el proyecto por inactividad** (plan free lo pausa tras ~7 días sin actividad, y el uso es esporádico). No existe hoy ningún mecanismo de keep-alive — el repo solo tiene `ci.yml` (PRs) y `deploy-pages.yml` (push a main). Candidato: GitHub Action con `schedule` (cron) que haga una query liviana a la DB cada pocos días.
+3. **Sección nueva de esquejes (propagación)**: trackear qué esquejes tiene Pame y su evolución (enraizamiento → trasplante). No existe ningún concepto de esqueje en el modelo de datos actual (ni tabla, ni tipo de evento en `plant_events`) — es una entidad nueva de cero, candidata a spec propio (¿tabla `cuttings` independiente, o extensión de `plants`/`plant_events`? a decidir en el spec).
 
 ---
 
