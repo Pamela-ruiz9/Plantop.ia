@@ -301,6 +301,7 @@ const base = import.meta.env.BASE_URL;
         errorEl.classList.remove('hidden');
         errorEl.textContent =
           err instanceof Error ? `No se pudo registrar el cuidado: ${err.message}` : 'No se pudo registrar el cuidado.';
+        errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }
 
