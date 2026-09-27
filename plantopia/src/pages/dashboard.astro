@@ -38,7 +38,7 @@ const base = import.meta.env.BASE_URL;
 
       <section>
         <h2 class="mb-2 text-sm font-medium text-slate-300">Por fase</h2>
-        <div id="phase-breakdown" class="flex flex-wrap gap-2 text-sm text-slate-300"></div>
+        <div id="phase-breakdown" class="flex flex-col gap-2"></div>
       </section>
 
       <section>
@@ -83,6 +83,7 @@ const base = import.meta.env.BASE_URL;
       HEALTH_LABELS,
       HEALTH_COLORS,
       HEALTH_STATUSES,
+      HEALTH_STROKE,
     } from '../lib/labels';
     import type { PlantWithCatalog } from '../types/catalog';
 
@@ -162,16 +163,60 @@ const base = import.meta.env.BASE_URL;
     }
 
     function renderHealthBreakdown(plants: PlantWithCatalog[]) {
-      healthBreakdown.innerHTML = HEALTH_STATUSES.map((status) => {
-        const count = plants.filter((p) => (p.health_status ?? 'healthy') === status).length;
-        return `<span class="rounded-full border px-3 py-1 text-xs ${HEALTH_COLORS[status]}">${HEALTH_LABELS[status]}: ${count}</span>`;
-      }).join('');
+      const total = plants.length;
+      const counts = HEALTH_STATUSES.map((status) => ({
+        status,
+        count: plants.filter((p) => (p.health_status ?? 'healthy') === status).length,
+      }));
+
+      const legend = counts
+        .map(
+          ({ status, count }) =>
+            `<span class="rounded-full border px-3 py-1 text-xs ${HEALTH_COLORS[status]}">${HEALTH_LABELS[status]}: ${count}</span>`
+        )
+        .join('');
+
+      if (total === 0) {
+        healthBreakdown.innerHTML = `<div class="flex flex-wrap gap-2">${legend}</div>`;
+        return;
+      }
+
+      let cumulative = 0;
+      const segments = counts
+        .filter(({ count }) => count > 0)
+        .map(({ status, count }) => {
+          const pct = (count / total) * 100;
+          const dashoffset = -cumulative;
+          cumulative += pct;
+          return `<circle cx="18" cy="18" r="15.915" fill="transparent" stroke="${HEALTH_STROKE[status]}" stroke-width="4" stroke-dasharray="${pct} ${100 - pct}" stroke-dashoffset="${dashoffset}" />`;
+        })
+        .join('');
+
+      healthBreakdown.innerHTML = `
+        <div class="flex items-center gap-4">
+          <svg viewBox="0 0 36 36" class="h-20 w-20 shrink-0 -rotate-90" role="img" aria-label="Distribución de salud de la colección">
+            <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#1e293b" stroke-width="4" />
+            ${segments}
+          </svg>
+          <div class="flex flex-1 flex-wrap gap-2">${legend}</div>
+        </div>
+      `;
     }
 
     function renderPhaseBreakdown(plants: PlantWithCatalog[]) {
+      const total = plants.length || 1; // evita división por cero (no debería llegar acá con 0 plantas, pero por las dudas)
       phaseBreakdown.innerHTML = GROWTH_PHASES.map((phase) => {
         const count = plants.filter((p) => p.current_phase === phase).length;
-        return `<span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-1">${PHASE_ICONS[phase]} ${PHASE_LABELS[phase]}: ${count}</span>`;
+        const pct = Math.round((count / total) * 100);
+        return `
+          <div class="flex items-center gap-2 text-sm text-slate-300">
+            <span class="w-28 shrink-0 truncate">${PHASE_ICONS[phase]} ${PHASE_LABELS[phase]}</span>
+            <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
+              <div class="h-full rounded-full bg-green-600" style="width: ${pct}%"></div>
+            </div>
+            <span class="w-6 shrink-0 text-right text-xs text-slate-500">${count}</span>
+          </div>
+        `;
       }).join('');
     }
 
