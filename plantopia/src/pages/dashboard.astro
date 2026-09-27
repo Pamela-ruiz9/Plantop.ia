@@ -288,11 +288,19 @@ const base = import.meta.env.BASE_URL;
         } else {
           plant.last_fertilized = todayIso;
         }
+        errorEl.classList.add('hidden');
         renderAll();
       } catch (err) {
-        button.disabled = false;
-        button.textContent = originalLabel;
-        button.title = err instanceof Error ? err.message : 'No se pudo guardar.';
+        const currentButton = agendaList.querySelector<HTMLButtonElement>(
+          `.quick-action[data-plant-id="${plantId}"][data-event-type="${eventType}"]`
+        );
+        if (currentButton) {
+          currentButton.disabled = false;
+          currentButton.textContent = originalLabel;
+        }
+        errorEl.classList.remove('hidden');
+        errorEl.textContent =
+          err instanceof Error ? `No se pudo registrar el cuidado: ${err.message}` : 'No se pudo registrar el cuidado.';
       }
     }
 
