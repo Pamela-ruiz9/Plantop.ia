@@ -42,15 +42,9 @@ const base = import.meta.env.BASE_URL;
       </section>
 
       <section>
-        <h2 class="mb-2 text-sm font-medium text-slate-300">⚠️ Necesitan atención</h2>
-        <ul id="attention-list" class="flex flex-col gap-2"></ul>
-        <p id="attention-empty" class="hidden text-sm text-slate-500">Nada pendiente — todo al día 🎉</p>
-      </section>
-
-      <section>
-        <h2 class="mb-2 text-sm font-medium text-slate-300">⏳ Vencen pronto</h2>
-        <ul id="due-soon-list" class="flex flex-col gap-2"></ul>
-        <p id="due-soon-empty" class="hidden text-sm text-slate-500">Nada por vencer en los próximos días.</p>
+        <h2 class="mb-2 text-sm font-medium text-slate-300">🗓️ Agenda de cuidados</h2>
+        <div id="agenda-list" class="flex flex-col gap-4"></div>
+        <p id="agenda-empty" class="hidden text-sm text-slate-500">Todo al día 🎉</p>
       </section>
     </div>
   </main>
@@ -59,7 +53,7 @@ const base = import.meta.env.BASE_URL;
 
   <script>
     import { requireAuth } from '../lib/session';
-    import { listPlants } from '../lib/plants';
+    import { listPlants, addPlantEvent } from '../lib/plants';
     import {
       getDisplayName,
       getAvatarUrl,
@@ -68,14 +62,8 @@ const base = import.meta.env.BASE_URL;
       getProviderLabel,
       type SessionUser,
     } from '../lib/user-display';
-    import {
-      isCareOverdue,
-      isCareDueSoon,
-      isWateringOverdue,
-      isFertilizingOverdue,
-      isWateringDueSoon,
-      isFertilizingDueSoon,
-    } from '../lib/plant-status';
+    import { isCareOverdue, isCareDueSoon } from '../lib/plant-status';
+    import { groupPlantsByAgenda, agendaActions, type AgendaGroupKey } from '../lib/dashboard-agenda';
     import {
       PHASE_LABELS,
       PHASE_ICONS,
@@ -93,13 +81,13 @@ const base = import.meta.env.BASE_URL;
     const statsGrid = document.getElementById('stats-grid')!;
     const healthBreakdown = document.getElementById('health-breakdown')!;
     const phaseBreakdown = document.getElementById('phase-breakdown')!;
-    const attentionList = document.getElementById('attention-list')!;
-    const attentionEmpty = document.getElementById('attention-empty')!;
-    const dueSoonList = document.getElementById('due-soon-list')!;
-    const dueSoonEmpty = document.getElementById('due-soon-empty')!;
+    const agendaList = document.getElementById('agenda-list')!;
+    const agendaEmpty = document.getElementById('agenda-empty')!;
     const userAvatarEl = document.getElementById('user-avatar')!;
     const userNameEl = document.getElementById('user-name')!;
     const userProviderEl = document.getElementById('user-provider')!;
+
+    let currentPlants: PlantWithCatalog[] = [];
 
     function escapeHtml(str: string): string {
       const div = document.createElement('div');
@@ -114,20 +102,6 @@ const base = import.meta.env.BASE_URL;
         : escapeHtml(getInitial(user));
       userNameEl.textContent = getDisplayName(user);
       userProviderEl.textContent = getProviderLabel(getProvider(user));
-    }
-
-    function overdueReasons(plant: PlantWithCatalog): string {
-      const reasons: string[] = [];
-      if (isWateringOverdue(plant)) reasons.push('💧 riego');
-      if (isFertilizingOverdue(plant)) reasons.push('🌿 fertilización');
-      return reasons.join(' · ');
-    }
-
-    function dueSoonReasons(plant: PlantWithCatalog): string {
-      const reasons: string[] = [];
-      if (isWateringDueSoon(plant)) reasons.push('💧 riego');
-      if (isFertilizingDueSoon(plant)) reasons.push('🌿 fertilización');
-      return reasons.join(' · ');
     }
 
     function thumbnail(plant: PlantWithCatalog): string {
@@ -220,51 +194,109 @@ const base = import.meta.env.BASE_URL;
       }).join('');
     }
 
-    function renderAttentionList(attention: PlantWithCatalog[]) {
-      if (attention.length === 0) {
-        attentionList.innerHTML = '';
-        attentionEmpty.classList.remove('hidden');
-        return;
-      }
-      attentionEmpty.classList.add('hidden');
+    interface AgendaColors {
+      border: string;
+      bg: string;
+      text: string;
+    }
+
+    const AGENDA_SECTIONS: { key: AgendaGroupKey; title: string; colors: AgendaColors }[] = [
+      { key: 'overdue', title: '⚠️ Atrasado', colors: { border: 'border-amber-900', bg: 'bg-amber-950/30', text: 'text-amber-400' } },
+      { key: 'today', title: '📅 Hoy', colors: { border: 'border-sky-900', bg: 'bg-sky-950/30', text: 'text-sky-400' } },
+      { key: 'this_week', title: '🗓️ Esta semana', colors: { border: 'border-violet-900', bg: 'bg-violet-950/30', text: 'text-violet-400' } },
+    ];
+
+    function agendaRow(plant: PlantWithCatalog, colors: AgendaColors): string {
       const base = import.meta.env.BASE_URL;
-      attentionList.innerHTML = attention
+      const actions = agendaActions(plant);
+      const reasonLabels = actions
+        .map((action) => (action.eventType === 'watered' ? '💧 riego' : '🌿 fertilización'))
+        .join(' · ');
+      const buttons = actions
         .map(
-          (plant) => `
-        <a href="${base}plants/detail?id=${plant.id}" class="flex items-center gap-3 rounded-lg border border-amber-900 bg-amber-950/30 px-3 py-2 text-sm transition hover:border-amber-700">
+          (action) =>
+            `<button type="button" class="quick-action shrink-0 rounded-full bg-slate-800 px-2 py-1 text-xs transition hover:bg-slate-700 disabled:opacity-50" data-plant-id="${plant.id}" data-event-type="${action.eventType}">${action.label}</button>`
+        )
+        .join('');
+
+      return `
+        <a href="${base}plants/detail?id=${plant.id}" class="flex items-center gap-3 rounded-lg border ${colors.border} ${colors.bg} px-3 py-2 text-sm transition hover:border-slate-600">
           ${thumbnail(plant)}
           <div class="flex-1">
             <span class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</span>
-            <span class="ml-2 text-xs text-amber-400">${overdueReasons(plant)}</span>
+            <span class="ml-2 text-xs ${colors.text}">${reasonLabels}</span>
           </div>
-          <span class="text-amber-400">→</span>
-        </a>`
+          <div class="flex shrink-0 items-center gap-1">${buttons}</div>
+        </a>`;
+    }
+
+    function renderAgenda(groups: Record<AgendaGroupKey, PlantWithCatalog[]>) {
+      const nonEmpty = AGENDA_SECTIONS.filter((section) => groups[section.key].length > 0);
+
+      if (nonEmpty.length === 0) {
+        agendaList.innerHTML = '';
+        agendaEmpty.classList.remove('hidden');
+        return;
+      }
+
+      agendaEmpty.classList.add('hidden');
+      agendaList.innerHTML = nonEmpty
+        .map(
+          (section) => `
+        <div>
+          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">${section.title}</h3>
+          <div class="flex flex-col gap-2">
+            ${groups[section.key].map((plant) => agendaRow(plant, section.colors)).join('')}
+          </div>
+        </div>`
         )
         .join('');
     }
 
-    function renderDueSoonList(dueSoon: PlantWithCatalog[]) {
-      if (dueSoon.length === 0) {
-        dueSoonList.innerHTML = '';
-        dueSoonEmpty.classList.remove('hidden');
-        return;
-      }
-      dueSoonEmpty.classList.add('hidden');
-      const base = import.meta.env.BASE_URL;
-      dueSoonList.innerHTML = dueSoon
-        .map(
-          (plant) => `
-        <a href="${base}plants/detail?id=${plant.id}" class="flex items-center gap-3 rounded-lg border border-sky-900 bg-sky-950/30 px-3 py-2 text-sm transition hover:border-sky-700">
-          ${thumbnail(plant)}
-          <div class="flex-1">
-            <span class="font-medium text-slate-100">${escapeHtml(plant.common_name)}</span>
-            <span class="ml-2 text-xs text-sky-400">${dueSoonReasons(plant)}</span>
-          </div>
-          <span class="text-sky-400">→</span>
-        </a>`
-        )
-        .join('');
+    function renderAll() {
+      const attention = currentPlants.filter((p) => isCareOverdue(p));
+      const dueSoon = currentPlants.filter((p) => !isCareOverdue(p) && isCareDueSoon(p));
+      const groups = groupPlantsByAgenda(currentPlants);
+
+      renderStats(currentPlants.length, attention.length, dueSoon.length);
+      renderHealthBreakdown(currentPlants);
+      renderPhaseBreakdown(currentPlants);
+      renderAgenda(groups);
     }
+
+    async function handleQuickAction(event: Event) {
+      const target = event.target as HTMLElement;
+      const button = target.closest<HTMLButtonElement>('.quick-action');
+      if (!button) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const plantId = button.dataset.plantId!;
+      const eventType = button.dataset.eventType as 'watered' | 'fertilized';
+      const plant = currentPlants.find((p) => p.id === plantId);
+      if (!plant) return;
+
+      button.disabled = true;
+      const originalLabel = button.textContent;
+
+      try {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        await addPlantEvent(plant, { event_type: eventType, event_date: todayIso, note: null });
+        if (eventType === 'watered') {
+          plant.last_watered = todayIso;
+        } else {
+          plant.last_fertilized = todayIso;
+        }
+        renderAll();
+      } catch (err) {
+        button.disabled = false;
+        button.textContent = originalLabel;
+        button.title = err instanceof Error ? err.message : 'No se pudo guardar.';
+      }
+    }
+
+    agendaList.addEventListener('click', handleQuickAction);
 
     async function init() {
       const user = await requireAuth();
@@ -272,22 +304,11 @@ const base = import.meta.env.BASE_URL;
       renderUserSummary(user);
 
       try {
-        const plants = await listPlants(user.id);
-        const attention = plants.filter((p) => isCareOverdue(p));
-        // Mutuamente excluyente con "attention": una planta ya atrasada en un eje
-        // (riego, por ej.) no aparece también en "vencen pronto" aunque el otro eje
-        // (fertilización) esté por vencer — se cuenta una sola vez, en "atención".
-        const dueSoon = plants.filter((p) => !isCareOverdue(p) && isCareDueSoon(p));
-
+        currentPlants = await listPlants(user.id);
         loadingEl.classList.add('hidden');
         contentEl.classList.remove('hidden');
         contentEl.classList.add('flex');
-
-        renderStats(plants.length, attention.length, dueSoon.length);
-        renderHealthBreakdown(plants);
-        renderPhaseBreakdown(plants);
-        renderAttentionList(attention);
-        renderDueSoonList(dueSoon);
+        renderAll();
       } catch (err) {
         loadingEl.classList.add('hidden');
         errorEl.classList.remove('hidden');
